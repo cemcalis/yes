@@ -3,7 +3,8 @@ const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 
 // Sadece SQLite kullanıyoruz.
-const dbFile = process.env.SQLITE_PATH || path.join(__dirname, '..', 'data', 'dev.sqlite');
+// Use env override or default to /app/data/dev.sqlite (same dir as container workdir)
+const dbFile = process.env.SQLITE_PATH || path.join(__dirname, 'data', 'dev.sqlite');
 
 // Varsayılan yol kullanılıyorsa klasörü oluştur.
 if (!process.env.SQLITE_PATH) {
