@@ -1,0 +1,9 @@
+YOUR_DOMAIN.com {
+encode gzip
+reverse_proxy /api/_ 127.0.0.1:5000
+reverse_proxy 127.0.0.1:3000
+file_server /images/_ {
+root /srv/app/frontend/public
+}
+tls you@your-email.com
+}

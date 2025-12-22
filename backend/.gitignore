@@ -1,0 +1,4 @@
+# Backend-specific ignores (ortak ignore üst dizinde)
+# Buraya ihtiyaç duyulan ekstra dışlamalar eklenebilir.
+/logs/
+/tmp/

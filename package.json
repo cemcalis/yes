@@ -1,0 +1,26 @@
+{
+  "name": "aura-ecommerce",
+  "version": "1.0.1",
+  "description": "AURA E-Commerce Platform - Full Stack Next.js Application",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "start": "cd frontend && npm start",
+    "build:natro": "cd frontend && npm run build",
+    "deploy:natro": "npm run build:natro && echo \"Build tamamlandı. out/ klasörünü Natro'ya yükleyin.\""
+  },
+  "keywords": [
+    "ecommerce",
+    "nextjs",
+    "natro"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "rsync": "^0.6.1"
+  }
+}

@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: aura-backend
+    runtime: node
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PORT
+        value: 5001
+      - key: FRONTEND_URL
+        value: https://frontend-mylbqgl5p-cemcalis-projects.vercel.app
