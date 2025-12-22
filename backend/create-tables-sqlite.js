@@ -3,7 +3,7 @@ const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 
 // Default to /app/data; allow override via env SQLITE_PATH or SQLITE_DIR
-const dataDir = process.env.SQLITE_DIR || path.join(__dirname, 'data');
+const dataDir = process.env.SQLITE_DIR || path.join(__dirname, '..', 'data');
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 const dbFile = process.env.SQLITE_PATH || path.join(dataDir, 'dev.sqlite');
 const db = new sqlite3.Database(dbFile);
