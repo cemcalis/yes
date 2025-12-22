@@ -194,7 +194,10 @@ export default function ProductPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(user?.token && { Authorization: `Bearer ${user.token}` }),
+          ...(((user as any)?.token && {
+            Authorization: `Bearer ${(user as any).token}`,
+          }) ||
+            {}),
         },
         body: JSON.stringify(orderData),
       });
