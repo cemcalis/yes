@@ -93,6 +93,7 @@ const adminMgmtRoutes = require('./routes/admin-management');
 const favoritesRoutes = require('./routes/favorites');
 const reviewRoutes = require('./routes/reviews');
 const stockAlertsRoutes = require('./routes/stock-alerts');
+const paymentsRoutes = require('./routes/payments');
 // const analyticsRoutes = require('./routes/analytics'); // Temporarily disabled
 const profileRoutes = require('./routes/profile');
 const addressesRoutes = require('./routes/addresses');
@@ -117,6 +118,7 @@ app.use('/api/admin-management', adminMgmtRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/stock-alerts', stockAlertsRoutes);
+app.use('/api/payments', paymentsRoutes);
 // app.use('/api/analytics', analyticsRoutes); // Temporarily disabled
 app.use('/api/profile', profileRoutes);
 app.use('/api/addresses', addressesRoutes);

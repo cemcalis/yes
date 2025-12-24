@@ -31,8 +31,8 @@ interface Category {
 
 const parseImageList = (value?: string | string[]) => {
   if (!value) return [];
-  const list = Array.isArray(value) ? value : value.split(",");
-  return list.map((s) => s.trim()).filter(Boolean);
+  if (Array.isArray(value)) return value.map((s) => s.trim()).filter(Boolean);
+  return String(value).split(",").map((s) => s.trim()).filter(Boolean);
 };
 
 export default function AdminProducts() {
@@ -233,7 +233,9 @@ export default function AdminProducts() {
         ? product.compare_price.toString()
         : "",
       image: product.image || "",
-      images: product.images || "",
+      images: Array.isArray(product.images)
+        ? product.images.join(", ")
+        : product.images || "",
       category_id: product.category_id ? product.category_id.toString() : "",
       stock: product.stock ? product.stock.toString() : "0",
       sizes: product.sizes ? product.sizes.split(",") : [],
