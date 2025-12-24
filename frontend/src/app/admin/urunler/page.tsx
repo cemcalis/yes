@@ -29,6 +29,12 @@ interface Category {
   name: string;
 }
 
+const parseImageList = (value?: string | string[]) => {
+  if (!value) return [];
+  const list = Array.isArray(value) ? value : value.split(",");
+  return list.map((s) => s.trim()).filter(Boolean);
+};
+
 export default function AdminProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -596,12 +602,7 @@ export default function AdminProducts() {
                         }
 
                         if (urls.length > 0) {
-                          const existing = formData.images
-                            ? formData.images
-                                .split(",")
-                                .map((s) => s.trim())
-                                .filter(Boolean)
-                            : [];
+                          const existing = parseImageList(formData.images);
                           const combined = [...existing, ...urls].join(", ");
                           setFormData({ ...formData, images: combined });
                         }
@@ -609,12 +610,11 @@ export default function AdminProducts() {
                       className="hidden"
                     />
                   </label>
-                  {formData.images && typeof formData.images === "string" && (
+                  {parseImageList(formData.images).length > 0 && (
                     <div className="p-2 bg-gray-50 rounded-md">
                       <div className="flex flex-wrap gap-2">
-                        {formData.images.split(",").map((url, idx) => {
-                          const trimmedUrl = url.trim();
-                          if (!trimmedUrl) return null;
+                        {parseImageList(formData.images).map((url, idx) => {
+                          const trimmedUrl = url;
                           return (
                             <div key={idx} className="relative">
                               <img
@@ -625,10 +625,7 @@ export default function AdminProducts() {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const urls = formData.images
-                                    .split(",")
-                                    .map((s) => s.trim())
-                                    .filter(Boolean);
+                                  const urls = parseImageList(formData.images);
                                   urls.splice(idx, 1);
                                   setFormData({
                                     ...formData,

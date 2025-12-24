@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { useCart } from "@/contexts/CartContext";
 import { api } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 
 interface Product {
   id: number;
@@ -92,6 +93,7 @@ export default function ProductPage() {
   const { user } = useAuth();
   const { isFavorite, addToFavorites, removeFromFavorites } = useFavorites();
   const { addToCart } = useCart();
+  const { showToast } = useToast();
 
   const router = useRouter();
 
@@ -150,10 +152,10 @@ export default function ProductPage() {
     );
   }
 
-  const handleAddToCart = async () => {
+      const handleAddToCart = async () => {
     try {
       await addToCart(product.id, {
-        variant_id: undefined, // şimdilik variant yok
+        variant_id: undefined, // Simdilik variant yok
         quantity,
         price: product.price,
         name: product.name,
@@ -161,19 +163,17 @@ export default function ProductPage() {
         size: selectedSize,
       });
 
-      // Simple feedback for now
-      alert("Ürün sepete eklendi");
+      showToast("Urun sepete eklendi", "success");
     } catch (err) {
       console.error("Sepete eklenirken hata:", err);
-      alert("Sepete eklenemedi. Lütfen tekrar deneyin.");
+      showToast("Sepete eklenemedi. Lutfen tekrar deneyin.", "error");
     }
   };
 
-  const handlePreOrder = async () => {
+      const handlePreOrder = async () => {
     try {
-      // Ön sipariş için ödeme olmadan sipariş oluştur
       const orderData = {
-        customer_name: user?.name || "Misafir Kullanıcı",
+        customer_name: user?.name || "Misafir Kullanici",
         customer_email: user?.email || "misafir@example.com",
         customer_phone: user?.phone || "",
         customer_address: user?.address || "",
@@ -196,21 +196,20 @@ export default function ProductPage() {
           "Content-Type": "application/json",
           ...(((user as any)?.token && {
             Authorization: `Bearer ${(user as any).token}`,
-          }) ||
-            {}),
+          }) || {}),
         },
         body: JSON.stringify(orderData),
       });
 
       if (response.ok) {
         const data = await response.json();
-        alert(`Ön siparişiniz oluşturuldu! Sipariş No: ${data.order_id}`);
+        showToast(`On siparisiniz olusturuldu! Siparis No: ${data.order_id}`, "success", 4000);
       } else {
-        throw new Error("Ön sipariş oluşturulamadı");
+        throw new Error("On siparis olusturulamadi");
       }
     } catch (err) {
-      console.error("Ön sipariş hatası:", err);
-      alert("Ön sipariş oluşturulamadı. Lütfen tekrar deneyin.");
+      console.error("On siparis hatasi:", err);
+      showToast("On siparis olusturulamadi. Lutfen tekrar deneyin.", "error", 3500);
     }
   };
 
@@ -342,35 +341,40 @@ export default function ProductPage() {
           </p>
 
           {/* Size Selection */}
-          {product.variants && product.variants.length > 0 && (
+          {(product.variants && product.variants.length > 0) || true ? (
             <div className="mb-6">
               <label className="block font-medium mb-3">Beden Seçin</label>
               <div className="flex gap-2 flex-wrap">
-                {product.variants.map((variant) => {
-                  const isSpecial =
-                    specialSizes.includes(variant.size?.toUpperCase?.() || "") &&
-                    variant.stock === 0;
-                  const isDisabled = variant.stock === 0 || isSpecial;
-                  return (
+                {product.variants &&
+                  product.variants.map((variant) => (
                     <button
                       key={variant.id}
-                      onClick={() => !isDisabled && setSelectedSize(variant.size)}
-                      disabled={isDisabled}
+                      onClick={() =>
+                        variant.stock > 0 && setSelectedSize(variant.size)
+                      }
+                      disabled={variant.stock === 0}
                       className={`px-4 py-2 border rounded-md transition-colors font-semibold ${
                         selectedSize === variant.size
                           ? "border-champagne-contrast/60 hover:border-champagne-contrast/80 text-champagne-contrast bg-white shadow-sm ring-1 ring-champagne-contrast/30"
-                          : isDisabled
+                          : variant.stock === 0
                           ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
                           : "border-gray-300 hover:border-champagne-contrast/60 text-gray-900 bg-white"
                       }`}
                     >
                       {variant.size}
                     </button>
-                  );
-                })}
+                  ))}
+                {["XS", "L"].map((size) => (
+                  <div
+                    key={size}
+                    className="px-4 py-2 border rounded-md bg-gray-100 text-gray-400 font-semibold cursor-not-allowed"
+                  >
+                    {size}
+                  </div>
+                ))}
               </div>
               <div className="mt-3 text-xs text-gray-500 leading-relaxed">
-                XS, M ve L bedeni özel üretimle hazırlanmaktadır.{" "}
+                XS ve L bedeni özel üretimle hazırlanmaktadır.{" "}
                 <button
                   type="button"
                   onClick={() => {
@@ -386,7 +390,7 @@ export default function ProductPage() {
                 </button>
               </div>
             </div>
-          )}
+          ) : null}
 
           {/* Quantity */}
           <div className="mb-6">
@@ -504,9 +508,8 @@ export default function ProductPage() {
 
             <div className="px-6 py-5 space-y-3 text-sm text-gray-700">
               <p>
-                Bazı modellerimizde XS, M ve L bedenleri özel üretim kapsamında
-                hazırlanmaktadır. Uygunluk ve süreç bilgisi için talebinizi
-                bırakabilirsiniz.
+                Bazı modellerimizde XS, M ve L bedenleri özel üretim kapsamındadır.
+                Uygunluk ve süreç bilgisi için talebinizi bırakabilirsiniz.
               </p>
               <form className="space-y-4" onSubmit={handleSizeRequestSubmit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -562,6 +565,7 @@ export default function ProductPage() {
                     />
                   </div>
                   <div className="space-y-1">
+                    <label className="text-xs text-gray-600">Ürün Adı</label>
                     <label className="text-xs text-gray-600">Ürün Adı</label>
                     <input
                       type="text"
@@ -632,12 +636,12 @@ export default function ProductPage() {
                       }))
                     }
                     required
-                  />
-                  <span>
+                />
+                <span>
                     XS, M ve L bedenlerin özel üretim kapsamında olduğunu ve teslim
                     süresinin standart ürünlerden farklı olabileceğini kabul ediyorum.
-                  </span>
-                </label>
+                </span>
+              </label>
 
                 <button
                   type="submit"
@@ -667,3 +671,13 @@ export default function ProductPage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+

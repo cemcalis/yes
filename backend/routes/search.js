@@ -2,6 +2,30 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
+const parseImages = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+    return value.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  return [];
+};
+
+const parseJson = (value, fallback) => {
+  if (!value) return fallback;
+  if (typeof value === "object") return value;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch {}
+  }
+  return fallback;
+};
+
 // Helper functions
 function getAsync(sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -207,9 +231,9 @@ router.get('/', async (req, res) => {
     // Parse JSON fields
     const parsedProducts = products.map(p => ({
       ...p,
-      images: p.images ? JSON.parse(p.images) : [],
-      tags: p.tags ? JSON.parse(p.tags) : [],
-      specifications: p.specifications ? JSON.parse(p.specifications) : {}
+      images: parseImages(p.images),
+      tags: parseJson(p.tags, []),
+      specifications: parseJson(p.specifications, {})
     }));
 
     // Track search if query exists

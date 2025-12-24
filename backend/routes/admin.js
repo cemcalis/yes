@@ -53,6 +53,41 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB
 });
 
+// Build unique variant combinations to avoid duplicate sizes/colors
+const buildUniqueVariants = (sizes = [], colors = []) => {
+  const uniqueSizes = Array.from(new Set((sizes || []).filter(Boolean)));
+  const uniqueColors = Array.from(new Set((colors || []).filter(Boolean)));
+  const variants = [];
+  const seen = new Set();
+
+  if (uniqueSizes.length && uniqueColors.length) {
+    for (const size of uniqueSizes) {
+      for (const color of uniqueColors) {
+        const key = `${size}::${color}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        variants.push({ size, color });
+      }
+    }
+  } else if (uniqueSizes.length) {
+    for (const size of uniqueSizes) {
+      const key = `${size}::`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      variants.push({ size, color: null });
+    }
+  } else if (uniqueColors.length) {
+    for (const color of uniqueColors) {
+      const key = `::${color}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      variants.push({ size: null, color });
+    }
+  }
+
+  return variants;
+};
+
 // Admin login - DB backed
 router.post('/auth/login', loginLimiter, async (req, res) => {
   try {
@@ -310,6 +345,19 @@ router.get('/products', adminAuth, async (req, res) => {
       filterParams.push(like, like);
     }
 
+    const parseImages = (value) => {
+      if (!value) return [];
+      if (Array.isArray(value)) return value;
+      if (typeof value === "string") {
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) return parsed;
+        } catch {}
+        return value.split(",").map((s) => s.trim()).filter(Boolean);
+      }
+      return [];
+    };
+
     const dataQuery = `
       SELECT p.*, c.name as category_name
       FROM products p
@@ -333,7 +381,7 @@ router.get('/products', adminAuth, async (req, res) => {
 
     const products = productsResult.map((p) => ({
       ...p,
-      images: p.images ? JSON.parse(p.images) : []
+      images: parseImages(p.images)
     }));
 
     const total = parseInt(countResult?.count || 0, 10);
@@ -440,16 +488,13 @@ router.post('/products', adminAuth, async (req, res) => {
     
     console.log('Product created with ID:', productId, 'Result:', result);
 
-    // Insert variants (sizes and colors)
-    if (sizes.length > 0 || colors.length > 0) {
-      for (const size of sizes) {
-        for (const color of colors) {
-          await dbRun(`
-            INSERT INTO variants (product_id, size, color, stock)
-            VALUES ($1, $2, $3, $4)
-          `, [productId, size, color, stock]);
-        }
-      }
+    // Insert variants (sizes and colors) without duplicates
+    const variantsToInsert = buildUniqueVariants(sizes, colors);
+    for (const variant of variantsToInsert) {
+      await dbRun(`
+        INSERT INTO variants (product_id, size, color, stock)
+        VALUES ($1, $2, $3, $4)
+      `, [productId, variant.size, variant.color, stock]);
     }
 
     res.json({
@@ -517,16 +562,13 @@ router.put('/products/:id', adminAuth, async (req, res) => {
     // Delete existing variants for this product
     await dbRun('DELETE FROM variants WHERE product_id = $1', [id]);
 
-    // Insert new variants
-    if (sizes.length > 0 || colors.length > 0) {
-      for (const size of sizes) {
-        for (const color of colors) {
-          await dbRun(`
-            INSERT INTO variants (product_id, size, color, stock)
-            VALUES ($1, $2, $3, $4)
-          `, [id, size, color, stock]);
-        }
-      }
+    // Insert new variants without duplicates
+    const variantsToInsert = buildUniqueVariants(sizes, colors);
+    for (const variant of variantsToInsert) {
+      await dbRun(`
+        INSERT INTO variants (product_id, size, color, stock)
+        VALUES ($1, $2, $3, $4)
+      `, [id, variant.size, variant.color, stock]);
     }
 
     res.json({

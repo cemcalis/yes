@@ -68,16 +68,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={{ showToast }}>
       {children}
       
-      <div className="fixed bottom-4 right-4 z-50 space-y-2 max-w-md">
+      <div className="fixed top-6 right-6 z-50 space-y-3 max-w-md">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`flex items-start gap-3 p-4 rounded-lg border shadow-lg animate-slide-in ${getStyles(toast.type)}`}
+            className={`flex items-start gap-3 p-4 rounded-xl border shadow-xl backdrop-blur-md transition-transform duration-200 ease-out ${getStyles(toast.type)} ${toast.type === 'error' ? 'shadow-red-100/70' : 'shadow-black/5'}`}
           >
             <div className="flex-shrink-0 mt-0.5">
               {getIcon(toast.type)}
             </div>
-            <p className="flex-1 text-sm font-medium">{toast.message}</p>
+            <p className="flex-1 text-sm font-medium leading-relaxed">
+              {toast.message}
+            </p>
             <button
               onClick={() => removeToast(toast.id)}
               className="flex-shrink-0 opacity-70 hover:opacity-100 transition-opacity"

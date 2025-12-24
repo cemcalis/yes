@@ -1,6 +1,19 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+
+const parseImages = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+    return value.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  return [];
+};
 const adminAuth = require('../middleware/adminAuth');
 
 // Tüm ürünleri getir (filtreleme + sıralama)
@@ -58,7 +71,7 @@ router.get('/', async (req, res) => {
     const result = await db.query(query, params);
     const products = result.rows.map(p => ({
       ...p,
-      images: p.images ? JSON.parse(p.images) : []
+      images: parseImages(p.images)
     }));
     res.json(products);
   } catch (error) {
@@ -88,7 +101,7 @@ router.get('/:slug', async (req, res) => {
     const variantsResult = await db.query('SELECT * FROM variants WHERE product_id = ?', [product.id]);
     product.variants = variantsResult.rows;
 
-    product.images = product.images ? JSON.parse(product.images) : [];
+    product.images = parseImages(product.images);
     res.json(product);
   } catch (error) {
     console.error('Product detail error:', error);
@@ -111,7 +124,7 @@ router.get('/most-liked', async (req, res) => {
     const result = await db.query(query);
     const products = result.rows.map(p => ({
       ...p,
-      images: p.images ? JSON.parse(p.images) : []
+      images: parseImages(p.images)
     }));
     res.json(products);
   } catch (error) {

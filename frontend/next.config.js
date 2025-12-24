@@ -1,5 +1,9 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Fix workspace root inference when multiple lockfiles exist
+  outputFileTracingRoot: path.join(__dirname, '..'),
   eslint: {
     ignoreDuringBuilds: true,
   },

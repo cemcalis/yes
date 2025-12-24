@@ -7,6 +7,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { useCart } from "@/contexts/CartContext";
 import { Heart, ShoppingBag } from "lucide-react";
+import { useToast } from "@/components/Toast";
+import { useRouter } from "next/navigation";
 
 interface ProductCardProps {
   id: number;
@@ -15,6 +17,7 @@ interface ProductCardProps {
   price: number;
   compare_price?: number;
   image_url: string;
+  images?: string[];
   stock_status: string;
   pre_order?: boolean;
   is_new?: boolean;
@@ -27,6 +30,7 @@ export default function ProductCard({
   price,
   compare_price,
   image_url,
+  images,
   stock_status,
   pre_order,
   is_new,
@@ -34,6 +38,8 @@ export default function ProductCard({
   const { user } = useAuth();
   const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
   const { addToCart } = useCart();
+  const { showToast } = useToast();
+  const router = useRouter();
   const [isAddingToFavorites, setIsAddingToFavorites] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
 
@@ -44,10 +50,9 @@ export default function ProductCard({
   const isProductFavorite = isFavorite(id);
 
   // Use placeholder if no image
-  const displayImage =
-    image_url
-      ? encodeURI(image_url)
-      : "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800";
+  const displayImage = encodeURI(
+    image_url || images?.[0] || "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800"
+  );
 
   const handleFavoriteClick = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -77,22 +82,8 @@ export default function ProductCard({
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
-    if (stock_status === "out_of_stock") return;
-
-    setIsAddingToCart(true);
-    try {
-      await addToCart(id, {
-        quantity: 1,
-        price: price,
-        name: name,
-        image_url: image_url,
-      });
-    } catch (error) {
-      console.error("Sepete eklenirken hata:", error);
-    } finally {
-      setIsAddingToCart(false);
-    }
+    // Ana sayfada buton tıklandığında ürün sayfasına yönlendir
+    router.push(`/urun/${slug}`);
   };
 
   const [imageError, setImageError] = useState(false);

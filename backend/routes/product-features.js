@@ -3,6 +3,19 @@ const { authenticateToken: auth } = require('../middleware/authMiddleware');
 const router = express.Router();
 const db = require('../db');
 
+const parseImages = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+    return value.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  return [];
+};
+
 
 // Helper functions
 function getAsync(sql, params = []) {
@@ -105,12 +118,11 @@ router.get('/recently-viewed', async (req, res) => {
 
     const products = await allAsync(query, params);
 
-    // Parse images JSON
     const parsedProducts = products.map(p => ({
       ...p,
-      images: p.images ? JSON.parse(p.images) : [],
-      tags: p.tags ? JSON.parse(p.tags) : [],
-      specifications: p.specifications ? JSON.parse(p.specifications) : {}
+      images: parseImages(p.images),
+      tags: parseJson(p.tags, []),
+      specifications: parseJson(p.specifications, {})
     }));
 
     res.json(parsedProducts);
@@ -188,13 +200,13 @@ router.post('/compare', async (req, res) => {
     const enrichedProducts = await Promise.all(products.map(async (p) => {
       const variants = await allAsync('SELECT * FROM variants WHERE product_id = ?', [p.id]);
       
-      return {
-        ...p,
-        images: p.images ? JSON.parse(p.images) : [],
-        tags: p.tags ? JSON.parse(p.tags) : [],
-        specifications: p.specifications ? JSON.parse(p.specifications) : {},
-        variants
-      };
+        return {
+          ...p,
+          images: parseImages(p.images),
+          tags: parseJson(p.tags, []),
+          specifications: parseJson(p.specifications, {}),
+          variants
+        };
     }));
 
     res.json({
@@ -254,8 +266,8 @@ router.get('/recommendations/:productId', async (req, res) => {
     // Parse JSON fields
     const parsedRecommendations = recommendations.map(p => ({
       ...p,
-      images: p.images ? JSON.parse(p.images) : [],
-      tags: p.tags ? JSON.parse(p.tags) : []
+      images: parseImages(p.images),
+      tags: parseJson(p.tags, [])
     }));
 
     res.json(parsedRecommendations);

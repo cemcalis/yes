@@ -11,6 +11,16 @@ if (!fs.existsSync(dbFile)) {
 }
 
 const db = new sqlite3.Database(dbFile);
+let closed = false;
+
+const closeDb = () =>
+  new Promise((resolve) => {
+    if (closed) return resolve();
+    db.close(() => {
+      closed = true;
+      resolve();
+    });
+  });
 
 function hasColumn(table, column) {
   return new Promise((resolve, reject) => {
@@ -27,7 +37,6 @@ async function run() {
     const exists = await hasColumn('categories', 'updated_at');
     if (exists) {
       console.log('[migrate] Column already exists, nothing to do.');
-      db.close();
       return;
     }
 
@@ -50,7 +59,7 @@ async function run() {
     console.error('[migrate] Failed:', err);
     process.exit(1);
   } finally {
-    db.close();
+    await closeDb();
   }
 }
 

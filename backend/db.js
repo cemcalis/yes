@@ -4,14 +4,26 @@ const sqlite3 = require('sqlite3').verbose();
 
 // Sadece SQLite kullanıyoruz.
 // Use env override or default to /app/data/dev.sqlite (shared volume)
-const dbFile = process.env.SQLITE_PATH || path.join(__dirname, '..', 'data', 'dev.sqlite');
+const defaultDbPath = path.join(__dirname, '..', 'data', 'dev.sqlite');
+const envDbPath = process.env.SQLITE_PATH;
+
+// Eğer env ile verilen yol açılamazsa, projedeki data/dev.sqlite'a düş
+let dbFile = envDbPath || defaultDbPath;
+if (envDbPath && !fs.existsSync(envDbPath)) {
+  const cwdDbPath = path.join(process.cwd(), 'data', 'dev.sqlite');
+  const fallback = fs.existsSync(defaultDbPath)
+    ? defaultDbPath
+    : fs.existsSync(cwdDbPath)
+      ? cwdDbPath
+      : envDbPath;
+  console.warn('[db] Provided SQLITE_PATH not found:', envDbPath, '-> falling back to', fallback);
+  dbFile = fallback;
+}
 
 // Varsayılan yol kullanılıyorsa klasörü oluştur.
-if (!process.env.SQLITE_PATH) {
-  const dataDir = path.dirname(dbFile);
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
+const dataDir = path.dirname(dbFile);
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
 }
 
 const db = new sqlite3.Database(dbFile);
