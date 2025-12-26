@@ -18,6 +18,7 @@ interface Product {
   name: string;
   slug: string;
   description: string;
+  admin_description?: string;
   price: number;
   compare_price?: number;
   image_url: string;
@@ -72,11 +73,12 @@ export default function ProductPage() {
   const [reviews, setReviews] = useState<ReviewData | null>(null);
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [showReviewForm, setShowReviewForm] = useState(false);
-  const [selectedSize, setSelectedSize] = useState("");
-  const [quantity, setQuantity] = useState(1);
+  const [selectedSize, setSelectedSize] = useState<string>("S");
+  const [quantity, setQuantity] = useState<number>(1);
   const [submittingReview, setSubmittingReview] = useState(false);
   const [newReview, setNewReview] = useState({ rating: 5, comment: "" });
   const [showSizeRequest, setShowSizeRequest] = useState(false);
+  const [showAdminDescription, setShowAdminDescription] = useState(false);
   const [sizeRequest, setSizeRequest] = useState({
     name: "",
     email: "",
@@ -86,6 +88,12 @@ export default function ProductPage() {
     note: "",
     consent: false,
   });
+
+  const hasAdminDescription = Boolean(
+    product?.admin_description && product.admin_description !== "0"
+  );
+  const isPreOrder = Boolean(product?.pre_order);
+
   const [sizeRequestStatus, setSizeRequestStatus] = useState<
     "idle" | "success" | "error"
   >("idle");
@@ -152,11 +160,12 @@ export default function ProductPage() {
     );
   }
 
-      const handleAddToCart = async () => {
+  const handleAddToCart = async () => {
+    const qty = quantity || 1;
     try {
       await addToCart(product.id, {
         variant_id: undefined, // Simdilik variant yok
-        quantity,
+        quantity: qty,
         price: product.price,
         name: product.name,
         image_url: product.image_url,
@@ -170,46 +179,36 @@ export default function ProductPage() {
     }
   };
 
-      const handlePreOrder = async () => {
-    try {
-      const orderData = {
-        customer_name: user?.name || "Misafir Kullanici",
-        customer_email: user?.email || "misafir@example.com",
-        customer_phone: user?.phone || "",
-        customer_address: user?.address || "",
-        items: [
-          {
-            product_id: product.id,
-            variant_id: undefined,
-            quantity,
-            price: product.price,
-          },
-        ],
-        total: product.price * quantity,
-        is_preorder: true,
-        status: "pending",
-      };
+  const handlePreOrder = async () => {
+    // Ön sipariş ürünlerinde beden talebi formunu göster
+    if (product.pre_order) {
+      setShowSizeRequest(true);
+      return;
+    }
 
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(((user as any)?.token && {
-            Authorization: `Bearer ${(user as any).token}`,
-          }) || {}),
-        },
-        body: JSON.stringify(orderData),
+    // Normal ön sipariş işlemi
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        showToast("Ön sipariş için giriş yapmalısınız", "error");
+        return;
+      }
+
+      const response = await api.createOrder({
+        product_id: product.id,
+        quantity: quantity,
+        size: selectedSize,
+        pre_order: true,
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        showToast(`On siparisiniz olusturuldu! Siparis No: ${data.order_id}`, "success", 4000);
+      if (response.success) {
+        showToast("Ön siparişiniz alındı!", "success");
       } else {
-        throw new Error("On siparis olusturulamadi");
+        showToast(response.message || "Ön sipariş oluşturulamadı", "error");
       }
-    } catch (err) {
-      console.error("On siparis hatasi:", err);
-      showToast("On siparis olusturulamadi. Lutfen tekrar deneyin.", "error", 3500);
+    } catch (error) {
+      console.error("Pre-order error:", error);
+      showToast("Ön sipariş oluşturulamadı", "error");
     }
   };
 
@@ -217,10 +216,20 @@ export default function ProductPage() {
     ? Math.round(
         ((product.compare_price - product.price) / product.compare_price) * 100
       )
-    : 0;
+    : null;
+
+  const cleanedImages = Array.isArray(product.images)
+    ? product.images.filter(
+        (img) => typeof img === "string" && img.trim().length > 0
+      )
+    : [];
 
   const allImages =
-    product.images.length > 0 ? product.images : [product.image_url];
+    cleanedImages.length > 0
+      ? cleanedImages
+      : product.image_url
+      ? [product.image_url]
+      : [];
 
   const specialSizes = ["XS", "M", "L"];
 
@@ -256,6 +265,14 @@ export default function ProductPage() {
     submit();
   };
 
+  const decreaseQuantity = () => {
+    setQuantity((q) => Math.max(1, (q || 1) - 1));
+  };
+
+  const increaseQuantity = () => {
+    setQuantity((q) => (q || 1) + 1);
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Breadcrumb */}
@@ -277,16 +294,22 @@ export default function ProductPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
         {/* Images */}
         <div>
-          <div className="relative aspect-[3/4] bg-muted rounded-lg overflow-hidden mb-4">
-            <Image
-              src={allImages[selectedImage]}
-              alt={product.name}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 50vw"
-              className="object-cover"
-              unoptimized={allImages[selectedImage]?.startsWith("/uploads")}
-              priority
-            />
+          <div className="relative aspect-3/4 bg-muted rounded-lg overflow-hidden mb-4">
+            {allImages.length > 0 && allImages[selectedImage] ? (
+              <Image
+                src={allImages[selectedImage]}
+                alt={product.name}
+                fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 50vw"
+                className="object-cover"
+                unoptimized={allImages[selectedImage]?.startsWith("/uploads")}
+                priority
+              />
+            ) : (
+              <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                <span className="text-gray-500">No Image</span>
+              </div>
+            )}
             {discount > 0 && (
               <span className="absolute top-4 left-4 bg-red-500 text-white text-sm px-3 py-1 rounded-full font-medium">
                 %{discount} İNDİRİM
@@ -307,14 +330,20 @@ export default function ProductPage() {
                       : "border-transparent"
                   }`}
                 >
-                  <Image
-                    src={img}
-                    alt={`${product.name} ${idx + 1}`}
-                    fill
-                    sizes="80px"
-                    className="object-cover"
-                    unoptimized={img?.startsWith("/uploads")}
-                  />
+                  {img ? (
+                    <Image
+                      src={img}
+                      alt={`${product.name} ${idx + 1}`}
+                      fill
+                      sizes="80px"
+                      className="object-cover"
+                      unoptimized={img?.startsWith("/uploads")}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                      <span className="text-xs text-gray-500">No Image</span>
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
@@ -323,81 +352,88 @@ export default function ProductPage() {
 
         {/* Product Info */}
         <div>
-          <h1 className="text-3xl font-bold mb-4">{product.name}</h1>
+          <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
 
           <div className="flex items-center gap-3 mb-6">
             <span className="text-3xl font-bold">
               {product.price.toLocaleString("tr-TR")} TL
             </span>
             {product.compare_price && (
-              <span className="text-xl text-foreground/50 line-through">
-                {product.compare_price.toLocaleString("tr-TR")} TL
-              </span>
+              <>
+                <span className="text-xl text-foreground/50 line-through">
+                  {product.compare_price.toLocaleString("tr-TR")} TL
+                </span>
+                {!!discount && (
+                  <span className="text-sm font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+                    %{discount} indirim
+                  </span>
+                )}
+              </>
             )}
           </div>
 
-          <p className="text-foreground/70 mb-8 leading-relaxed">
-            {product.description}
-          </p>
+          <div className="mb-8">
+            <h3 className="font-semibold text-lg text-gray-900 mb-4">
+              Ürün Açıklaması
+            </h3>
+            <div className="text-sm text-foreground/70 leading-relaxed bg-gray-50 p-4 rounded-lg">
+              {product.description ||
+                "Bu ürün için açıklama henüz eklenmemiştir."}
+            </div>
+          </div>
 
           {/* Size Selection */}
-          {(product.variants && product.variants.length > 0) || true ? (
-            <div className="mb-6">
-              <label className="block font-medium mb-3">Beden Seçin</label>
-              <div className="flex gap-2 flex-wrap">
-                {product.variants &&
-                  product.variants.map((variant) => (
-                    <button
-                      key={variant.id}
-                      onClick={() =>
-                        variant.stock > 0 && setSelectedSize(variant.size)
-                      }
-                      disabled={variant.stock === 0}
-                      className={`px-4 py-2 border rounded-md transition-colors font-semibold ${
-                        selectedSize === variant.size
-                          ? "border-champagne-contrast/60 hover:border-champagne-contrast/80 text-champagne-contrast bg-white shadow-sm ring-1 ring-champagne-contrast/30"
-                          : variant.stock === 0
-                          ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
-                          : "border-gray-300 hover:border-champagne-contrast/60 text-gray-900 bg-white"
-                      }`}
-                    >
-                      {variant.size}
-                    </button>
-                  ))}
-                {["XS", "L"].map((size) => (
-                  <div
-                    key={size}
-                    className="px-4 py-2 border rounded-md bg-gray-100 text-gray-400 font-semibold cursor-not-allowed"
-                  >
-                    {size}
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 text-xs text-gray-500 leading-relaxed">
-                XS ve L bedeni özel üretimle hazırlanmaktadır.{" "}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowSizeRequest(true);
-                    setSizeRequest((prev) => ({
-                      ...prev,
-                      size: prev.size || "XS",
-                    }));
-                  }}
-                  className="underline underline-offset-2 text-gray-600 hover:text-gray-800"
-                >
-                  Beden talebi oluşturabilirsiniz.
-                </button>
-              </div>
+          <div className="mb-6">
+            <label className="block font-medium mb-3">Beden Seçin</label>
+            <div className="flex gap-2 flex-wrap">
+              {/* Mevcut variantlar */}
+              {product.variants && product.variants.length > 0
+                ? product.variants
+                    .filter((variant) => variant.stock > 0 || product.pre_order)
+                    .map((variant) => (
+                      <button
+                        key={variant.id}
+                        onClick={() => {
+                          if (variant.stock > 0) {
+                            setSelectedSize(variant.size);
+                          } else if (!product.pre_order) {
+                            setSizeRequest({
+                              ...sizeRequest,
+                              productName: product.name,
+                              size: variant.size,
+                            });
+                            setShowSizeRequest(true);
+                          }
+                        }}
+                        disabled={variant.stock === 0 && !product.pre_order}
+                        className={`px-4 py-2 border rounded-md transition-colors font-semibold ${
+                          selectedSize === variant.size
+                            ? "border-champagne-contrast/60 hover:border-champagne-contrast/80 text-champagne-contrast bg-white shadow-sm ring-1 ring-champagne-contrast/30"
+                            : variant.stock > 0
+                            ? "border-gray-300 hover:border-champagne-contrast/40 text-gray-700 bg-white"
+                            : product.pre_order
+                            ? "border-champagne-contrast/40 text-champagne-contrast bg-champagne-contrast/10 hover:bg-champagne-contrast/20"
+                            : "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
+                        }`}
+                      >
+                        {variant.size}
+                        {variant.stock === 0 && (
+                          <span className="text-xs block">
+                            {product.pre_order ? "Ön Sipariş" : "Talep Oluştur"}
+                          </span>
+                        )}
+                      </button>
+                    ))
+                : null}
             </div>
-          ) : null}
-
-          {/* Quantity */}
+          </div>
           <div className="mb-6">
             <label className="block font-medium mb-3">Adet</label>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                type="button"
+                onClick={decreaseQuantity}
+                aria-label="Adet azalt"
                 className="w-10 h-10 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors bg-white text-gray-900 font-semibold text-lg"
               >
                 -
@@ -406,36 +442,103 @@ export default function ProductPage() {
                 {quantity}
               </span>
               <button
-                onClick={() => setQuantity(quantity + 1)}
+                type="button"
+                onClick={increaseQuantity}
+                aria-label="Adet arttır"
                 className="w-10 h-10 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors bg-white text-gray-900 font-semibold text-lg"
               >
                 +
               </button>
+
+              {/* Özel Talepler badge + Talep bırak link (pre-order ürünler için) */}
+              {product.pre_order && (
+                <div className="ml-4 flex items-center gap-2">
+                  <span className="text-sm font-semibold text-gray-700 bg-gray-100 px-2 py-1 rounded">
+                    Özel Talepler
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowSizeRequest(true)}
+                    className="text-sm text-gray-600 hover:underline"
+                  >
+                    Talep bırak
+                  </button>
+                </div>
+              )}
+
+              {/* Admin Özel Açıklama Butonu - Sadece ön sipariş ve açıklama varsa göster */}
+              {isPreOrder && hasAdminDescription && (
+                <button
+                  onClick={() => setShowAdminDescription(!showAdminDescription)}
+                  className="ml-4 px-4 py-2 text-sm bg-gradient-to-r from-champagne-contrast/10 to-champagne-contrast/20 hover:from-champagne-contrast/20 hover:to-champagne-contrast/30 text-champagne-contrast border border-champagne-contrast/30 rounded-lg transition-all duration-300 flex items-center gap-2 font-medium shadow-sm hover:shadow-md"
+                >
+                  <svg
+                    className={`w-4 h-4 transition-transform duration-300 ${
+                      showAdminDescription ? "rotate-90" : ""
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  Ürün Detayı
+                </button>
+              )}
             </div>
+
+            {/* Admin Açıklama İçeriği - Tıklanınca göster */}
+            {showAdminDescription && isPreOrder && hasAdminDescription && (
+              <div className="mt-4 p-6 bg-gradient-to-br from-white via-champagne-contrast/5 to-champagne-contrast/10 border border-champagne-contrast/20 rounded-xl text-sm text-gray-700 leading-relaxed shadow-lg backdrop-blur-sm animate-in slide-in-from-top-2 duration-300">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-8 h-8 bg-champagne-contrast/20 rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-4 h-4 text-champagne-contrast"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-champagne-contrast mb-2 text-base">
+                      Ürün Detayları
+                    </h4>
+                    {hasAdminDescription && (
+                      <div className="text-gray-700 font-light leading-relaxed">
+                        {product.admin_description}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Actions */}
           <div className="flex gap-3 mb-8">
-            {product.pre_order ? (
-              <button
-                onClick={handlePreOrder}
-                className="flex-1 bg-blue-600 text-white px-6 py-4 rounded-md font-medium shadow-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <FiShoppingBag />
-                Ön Sipariş Ver
-              </button>
-            ) : (
-              <button
-                onClick={handleAddToCart}
-                disabled={product.stock_status === "out_of_stock"}
-                className="flex-1 bg-white border border-champagne-contrast/60 text-champagne-contrast px-6 py-4 rounded-md font-medium shadow-sm hover:bg-gray-50 hover:shadow transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                <FiShoppingBag />
-                {product.stock_status === "out_of_stock"
-                  ? "Stokta Yok"
-                  : "Sepete Ekle"}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              disabled={
+                product.stock_status === "out_of_stock" && !product.pre_order
+              }
+              className="flex-1 bg-champagne-contrast text-black px-6 py-4 rounded-md font-medium shadow-md hover:bg-champagne-contrast/90 transition-transform transform duration-200 ease-out hover:-translate-y-1 hover:shadow-lg active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-200"
+            >
+              <FiShoppingBag />
+              Sepete Ekle
+            </button>
             <button
               onClick={() => {
                 if (!user) {
@@ -457,34 +560,34 @@ export default function ProductPage() {
               <FiHeart size={20} />
             </button>
           </div>
+        </div>
 
-          {/* Product Details */}
-          <div className="border-t border-border pt-6 space-y-4 text-sm">
-            <div className="flex justify-between">
-              <span className="text-foreground/60">Kategori:</span>
-              <Link
-                href={`/koleksiyon/${product.category_slug}`}
-                className="font-medium hover:text-secondary"
-              >
-                {product.category_name}
-              </Link>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-foreground/60">Stok Durumu:</span>
-              <span
-                className={
-                  product.stock_status === "in_stock"
-                    ? "text-green-600"
-                    : "text-red-600"
-                }
-              >
-                {product.stock_status === "in_stock" ? "Stokta" : "Tükendi"}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-foreground/60">Kargo:</span>
-              <span className="font-medium">2-3 iş günü</span>
-            </div>
+        {/* Product Details */}
+        <div className="border-t border-border pt-6 space-y-4 text-sm">
+          <div className="flex justify-between">
+            <span className="text-foreground/60">Kategori:</span>
+            <Link
+              href={`/koleksiyon/${product.category_slug}`}
+              className="font-medium hover:text-secondary"
+            >
+              {product.category_name}
+            </Link>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-foreground/60">Stok Durumu:</span>
+            <span
+              className={
+                product.stock_status === "in_stock"
+                  ? "text-green-600"
+                  : "text-red-600"
+              }
+            >
+              {product.stock_status === "in_stock" ? "Stokta" : "Tükendi"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-foreground/60">Kargo:</span>
+            <span className="font-medium">2-3 iş günü</span>
           </div>
         </div>
       </div>
@@ -508,8 +611,9 @@ export default function ProductPage() {
 
             <div className="px-6 py-5 space-y-3 text-sm text-gray-700">
               <p>
-                Bazı modellerimizde XS, M ve L bedenleri özel üretim kapsamındadır.
-                Uygunluk ve süreç bilgisi için talebinizi bırakabilirsiniz.
+                Bazı modellerimizde XS, M ve L bedenleri özel üretim
+                kapsamındadır. Uygunluk ve süreç bilgisi için talebinizi
+                bırakabilirsiniz.
               </p>
               <form className="space-y-4" onSubmit={handleSizeRequestSubmit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -550,7 +654,8 @@ export default function ProductPage() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs text-gray-600">
-                      Telefon Numarası <span className="text-gray-400">(opsiyonel)</span>
+                      Telefon Numarası{" "}
+                      <span className="text-gray-400">(opsiyonel)</span>
                     </label>
                     <input
                       type="tel"
@@ -565,7 +670,6 @@ export default function ProductPage() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs text-gray-600">Ürün Adı</label>
                     <label className="text-xs text-gray-600">Ürün Adı</label>
                     <input
                       type="text"
@@ -582,7 +686,9 @@ export default function ProductPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <span className="text-xs text-gray-600">Talep Edilen Beden</span>
+                  <span className="text-xs text-gray-600">
+                    Talep Edilen Beden
+                  </span>
                   <div className="flex gap-3">
                     {specialSizes.map((size) => (
                       <label
@@ -636,12 +742,13 @@ export default function ProductPage() {
                       }))
                     }
                     required
-                />
-                <span>
-                    XS, M ve L bedenlerin özel üretim kapsamında olduğunu ve teslim
-                    süresinin standart ürünlerden farklı olabileceğini kabul ediyorum.
-                </span>
-              </label>
+                  />
+                  <span>
+                    XS, M ve L bedenlerin özel üretim kapsamında olduğunu ve
+                    teslim süresinin standart ürünlerden farklı olabileceğini
+                    kabul ediyorum.
+                  </span>
+                </label>
 
                 <button
                   type="submit"
@@ -660,8 +767,8 @@ export default function ProductPage() {
                 )}
 
                 <p className="text-[11px] text-gray-500 text-center">
-                  Özel üretim talepleri için ek süre gerekebilir. Talebiniz incelendikten
-                  sonra sizinle iletişime geçilecektir.
+                  Özel üretim talepleri için ek süre gerekebilir. Talebiniz
+                  incelendikten sonra sizinle iletişime geçilecektir.
                 </p>
               </form>
             </div>
@@ -671,13 +778,3 @@ export default function ProductPage() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-

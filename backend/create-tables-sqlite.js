@@ -38,6 +38,7 @@ async function createTables() {
       name TEXT NOT NULL,
       slug TEXT UNIQUE NOT NULL,
       description TEXT,
+      admin_description TEXT,
       price REAL NOT NULL,
       compare_price REAL,
       category_id INTEGER,
@@ -319,7 +320,9 @@ async function createTables() {
       size TEXT NOT NULL,
       note TEXT,
       consent INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      status TEXT DEFAULT 'pending',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
     console.log('All SQLite tables created successfully');

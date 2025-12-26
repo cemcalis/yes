@@ -30,8 +30,20 @@ async function migrate() {
       size TEXT NOT NULL,
       note TEXT,
       consent INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      status TEXT DEFAULT 'pending',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
+    
+    // Add status column if it doesn't exist (for existing tables)
+    try {
+      await run(`ALTER TABLE special_size_requests ADD COLUMN status TEXT DEFAULT 'pending'`);
+      await run(`ALTER TABLE special_size_requests ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP`);
+      console.log('[migrate] Added status and updated_at columns to existing table');
+    } catch (err) {
+      // Columns already exist, ignore error
+      console.log('[migrate] Columns already exist or table is new');
+    }
     console.log('[migrate] Done.');
   } catch (err) {
     console.error('[migrate] Failed:', err);

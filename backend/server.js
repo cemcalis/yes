@@ -36,6 +36,7 @@ const allowedOrigins = Array.from(new Set([
   'http://localhost:3001',
   'http://localhost:3002',
   'http://localhost:3003',
+  'http://127.0.0.1:54143',
   process.env.FRONTEND_URL,
   process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null,
   'https://aura-frontend-zeta.vercel.app',

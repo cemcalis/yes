@@ -8,6 +8,7 @@ interface Product {
   id: number;
   name: string;
   description: string;
+  admin_description?: string;
   price: number;
   compare_price?: number;
   image: string;
@@ -32,7 +33,10 @@ interface Category {
 const parseImageList = (value?: string | string[]) => {
   if (!value) return [];
   if (Array.isArray(value)) return value.map((s) => s.trim()).filter(Boolean);
-  return String(value).split(",").map((s) => s.trim()).filter(Boolean);
+  return String(value)
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 };
 
 export default function AdminProducts() {
@@ -45,6 +49,7 @@ export default function AdminProducts() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
+    admin_description: "",
     price: "",
     comparePrice: "",
     image: "",
@@ -141,6 +146,7 @@ export default function AdminProducts() {
     const productData = {
       name: formData.name,
       description: formData.description,
+      admin_description: formData.admin_description,
       price: parseFloat(formData.price),
       compare_price: formData.comparePrice
         ? parseFloat(formData.comparePrice)
@@ -228,6 +234,7 @@ export default function AdminProducts() {
     setFormData({
       name: product.name || "",
       description: product.description || "",
+      admin_description: product.admin_description || "",
       price: product.price ? product.price.toString() : "0",
       comparePrice: product.compare_price
         ? product.compare_price.toString()
@@ -273,6 +280,7 @@ export default function AdminProducts() {
     setFormData({
       name: "",
       description: "",
+      admin_description: "",
       price: "",
       comparePrice: "",
       image: "",
@@ -489,6 +497,27 @@ export default function AdminProducts() {
                   required
                 />
               </div>
+
+              {/* Özel Açıklama - Sadece ön sipariş ürünlerinde göster */}
+              {formData.pre_order && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Özel Açıklama (Ürün Detayı)
+                  </label>
+                  <textarea
+                    value={formData.admin_description}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        admin_description: e.target.value,
+                      })
+                    }
+                    rows={3}
+                    placeholder="Ön sipariş ürünleri için özel detay bilgisi girin. Bu açıklama ürün sayfasında 'Ürün Detayı' butonuyla gösterilecektir."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

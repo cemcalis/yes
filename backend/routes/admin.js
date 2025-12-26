@@ -427,6 +427,78 @@ router.get('/analytics/top-favorites', async (req, res) => {
   }
 });
 
+// Update product
+router.put('/products/:id', adminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      name,
+      description,
+      admin_description,
+      price,
+      compare_price,
+      image,
+      images,
+      category_id,
+      stock = 100,
+      sizes = [],
+      colors = [],
+      is_featured = false,
+      pre_order = false,
+      is_new = false,
+      is_active = true
+    } = req.body;
+
+    // Validation
+    if (!name || !price) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ürün adı ve fiyat gereklidir'
+      });
+    }
+
+    if (price <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Fiyat 0\'dan büyük olmalıdır'
+      });
+    }
+
+    // Update product
+    const slug = req.body.slug ? req.body.slug.toString().toLowerCase().trim().replace(/\s+/g,'-').replace(/[^a-z0-9\-]/g,'').replace(/\-+/g,'-') : name.toString().toLowerCase().trim().replace(/\s+/g,'-').replace(/[^a-z0-9\-]/g,'').replace(/\-+/g,'-');
+    const imagesJson = Array.isArray(images) ? JSON.stringify(images) : images;
+
+    await dbRun(`
+      UPDATE products
+      SET name = $1, slug = $2, description = $3, admin_description = $4, price = $5, compare_price = $6, image_url = $7, images = $8, category_id = $9, stock_status = $10, pre_order = $11, is_featured = $12, is_new = $13, is_active = $14, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $15
+    `, [name, slug, description, admin_description, price, compare_price, image, imagesJson, category_id, stock > 0 ? 'in_stock' : 'out_of_stock', Boolean(pre_order), is_featured, is_new, Boolean(is_active), id]);
+
+    // Delete existing variants for this product
+    await dbRun('DELETE FROM variants WHERE product_id = $1', [id]);
+
+    // Insert new variants without duplicates
+    const variantsToInsert = buildUniqueVariants(sizes, colors);
+    for (const variant of variantsToInsert) {
+      await dbRun(`
+        INSERT INTO variants (product_id, size, color, stock)
+        VALUES ($1, $2, $3, $4)
+      `, [id, variant.size, variant.color, stock]);
+    }
+
+    res.json({
+      success: true,
+      message: 'Ürün güncellendi'
+    });
+  } catch (error) {
+    console.error('Product update error:', error && error.stack ? error.stack : error);
+    res.status(500).json({
+      success: false,
+      message: 'Ürün güncellenemedi'
+    });
+  }
+});
+
 // Create product
 router.post('/products', adminAuth, async (req, res) => {
   try {
@@ -481,7 +553,7 @@ router.post('/products', adminAuth, async (req, res) => {
       `INSERT INTO products (name, slug, description, price, compare_price, image_url, images, category_id, stock, pre_order, is_featured, is_new, is_active)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING id`
-      , [name, slug, description, price, compare_price, image, imagesJson, category_id, stock, Boolean(pre_order), is_featured, is_new, is_active]
+      , [name, slug, description, price, compare_price, image, imagesJson, category_id, stock, Boolean(pre_order), is_featured, is_new, Boolean(is_active)]
     );
 
     const productId = result.rows[0].id;
@@ -513,77 +585,7 @@ router.post('/products', adminAuth, async (req, res) => {
   }
 });
 
-// Update product
-router.put('/products/:id', adminAuth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const {
-      name,
-      description,
-      price,
-      compare_price,
-      image,
-      images,
-      category_id,
-      stock = 100,
-      sizes = [],
-      colors = [],
-      is_featured = false,
-      pre_order = false,
-      is_new = false,
-      is_active = true
-    } = req.body;
-
-    // Validation
-    if (!name || !price) {
-      return res.status(400).json({
-        success: false,
-        message: 'Ürün adı ve fiyat gereklidir'
-      });
-    }
-
-    if (price <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Fiyat 0\'dan büyük olmalıdır'
-      });
-    }
-
-    // Update product
-    const slug = req.body.slug ? req.body.slug.toString().toLowerCase().trim().replace(/\s+/g,'-').replace(/[^a-z0-9\-]/g,'').replace(/\-+/g,'-') : name.toString().toLowerCase().trim().replace(/\s+/g,'-').replace(/[^a-z0-9\-]/g,'').replace(/\-+/g,'-');
-    const imagesJson = Array.isArray(images) ? JSON.stringify(images) : images;
-
-    await dbRun(`
-      UPDATE products
-      SET name = $1, slug = $2, description = $3, price = $4, compare_price = $5, image_url = $6, images = $7, category_id = $8, stock_status = $9, pre_order = $10, is_featured = $11, is_new = $12, is_active = $13, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $14
-    `, [name, slug, description, price, compare_price, image, imagesJson, category_id, stock > 0 ? 'in_stock' : 'out_of_stock', Boolean(pre_order), is_featured, is_new, is_active, id]);
-
-    // Delete existing variants for this product
-    await dbRun('DELETE FROM variants WHERE product_id = $1', [id]);
-
-    // Insert new variants without duplicates
-    const variantsToInsert = buildUniqueVariants(sizes, colors);
-    for (const variant of variantsToInsert) {
-      await dbRun(`
-        INSERT INTO variants (product_id, size, color, stock)
-        VALUES ($1, $2, $3, $4)
-      `, [id, variant.size, variant.color, stock]);
-    }
-
-    res.json({
-      success: true,
-      message: 'Ürün güncellendi'
-    });
-  } catch (error) {
-    console.error('Product update error:', error && error.stack ? error.stack : error);
-    res.status(500).json({
-      success: false,
-      message: 'Ürün güncellenemedi'
-    });
-  }
-});
-
+// ...
 // Toggle product active status
 router.patch('/products/:id/toggle-active', adminAuth, async (req, res) => {
   try {
