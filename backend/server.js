@@ -168,6 +168,38 @@ app.post('/api/metrics/reset', (req, res) => {
 // Serve uploaded files (make sure uploads are saved to backend/public/uploads)
 const path = require('path');
 const uploadsPath = path.join(__dirname, 'public', 'uploads');
+const fs = require('fs');
+
+// Middleware: handle requests where multiple paths were accidentally joined (e.g. 
+// "/uploads/a.png, /uploads/b.png") by splitting and serving the first existing file.
+app.use('/uploads', (req, res, next) => {
+  try {
+    const originalUrl = decodeURIComponent(req.url || '');
+    // If the URL contains commas, it likely is a joined list — try to split and serve first existing
+    if (originalUrl.includes(',')) {
+      const parts = originalUrl.split(',').map(p => p.trim()).filter(Boolean);
+      for (const part of parts) {
+        // strip leading slash if present
+        const rel = part.replace(/^\//, '');
+        const candidate = path.join(uploadsPath, rel);
+        try {
+          const stat = fs.statSync(candidate);
+          if (stat.isFile()) {
+            return res.sendFile(candidate);
+          }
+        } catch (err) {
+          // not found, try next
+        }
+      }
+      // none found — continue to static handler which will return 404
+    }
+  } catch (err) {
+    // on any error, fallthrough to static handler
+    logger && logger.error && logger.error('uploads middleware error: ' + String(err));
+  }
+  next();
+});
+
 app.use('/uploads', express.static(uploadsPath, {
   dotfiles: 'deny',
   maxAge: '1d',
