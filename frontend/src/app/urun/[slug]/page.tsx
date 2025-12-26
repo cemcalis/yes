@@ -310,7 +310,7 @@ export default function ProductPage() {
                 <span className="text-gray-500">No Image</span>
               </div>
             )}
-            {discount > 0 && (
+            {discount != null && discount > 0 && (
               <span className="absolute top-4 left-4 bg-red-500 text-white text-sm px-3 py-1 rounded-full font-medium">
                 %{discount} İNDİRİM
               </span>
