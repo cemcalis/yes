@@ -50,6 +50,7 @@ export default function AdminProducts() {
     name: "",
     description: "",
     admin_description: "",
+    slogan: "",
     price: "",
     comparePrice: "",
     image: "",
@@ -58,6 +59,7 @@ export default function AdminProducts() {
     stock: "",
     sizes: [] as string[],
     colors: [] as string[],
+    pre_order_sizes: [] as string[],
     pre_order: false,
     is_featured: false,
     is_new: false,
@@ -147,6 +149,7 @@ export default function AdminProducts() {
       name: formData.name,
       description: formData.description,
       admin_description: formData.admin_description,
+      slogan: formData.slogan,
       price: parseFloat(formData.price),
       compare_price: formData.comparePrice
         ? parseFloat(formData.comparePrice)
@@ -156,6 +159,7 @@ export default function AdminProducts() {
       category_id: parseInt(formData.category_id),
       stock: parseInt(formData.stock),
       sizes: formData.sizes,
+      pre_order_sizes: formData.pre_order_sizes,
       colors: formData.colors,
       pre_order: formData.pre_order,
       is_featured: formData.is_featured,
@@ -235,6 +239,7 @@ export default function AdminProducts() {
       name: product.name || "",
       description: product.description || "",
       admin_description: product.admin_description || "",
+      slogan: (product as any).slogan || "",
       price: product.price ? product.price.toString() : "0",
       comparePrice: product.compare_price
         ? product.compare_price.toString()
@@ -246,6 +251,9 @@ export default function AdminProducts() {
       category_id: product.category_id ? product.category_id.toString() : "",
       stock: product.stock ? product.stock.toString() : "0",
       sizes: product.sizes ? product.sizes.split(",") : [],
+      pre_order_sizes: (product as any).pre_order_sizes
+        ? (product as any).pre_order_sizes.split(",")
+        : [],
       colors: product.colors ? product.colors.split(",") : [],
       pre_order: product.pre_order || false,
       is_featured: product.is_featured || false,
@@ -281,6 +289,7 @@ export default function AdminProducts() {
       name: "",
       description: "",
       admin_description: "",
+      slogan: "",
       price: "",
       comparePrice: "",
       image: "",
@@ -288,6 +297,7 @@ export default function AdminProducts() {
       category_id: "",
       stock: "",
       sizes: [],
+      pre_order_sizes: [],
       colors: [],
       pre_order: false,
       is_featured: false,
@@ -485,6 +495,20 @@ export default function AdminProducts() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Ürün Sloganı (küçük, italik)
+                </label>
+                <input
+                  type="text"
+                  value={formData.slogan}
+                  onChange={(e) =>
+                    setFormData({ ...formData, slogan: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Açıklama
                 </label>
                 <textarea
@@ -498,26 +522,24 @@ export default function AdminProducts() {
                 />
               </div>
 
-              {/* Özel Açıklama - Sadece ön sipariş ürünlerinde göster */}
-              {formData.pre_order && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Özel Açıklama (Ürün Detayı)
-                  </label>
-                  <textarea
-                    value={formData.admin_description}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        admin_description: e.target.value,
-                      })
-                    }
-                    rows={3}
-                    placeholder="Ön sipariş ürünleri için özel detay bilgisi girin. Bu açıklama ürün sayfasında 'Ürün Detayı' butonuyla gösterilecektir."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              )}
+              {/* Özel Açıklama (Ürün Detayı) - gösterilebilir her ürün için */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Özel Açıklama (Ürün Detayı)
+                </label>
+                <textarea
+                  value={formData.admin_description}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      admin_description: e.target.value,
+                    })
+                  }
+                  rows={3}
+                  placeholder="Ürün detayı / ön sipariş bilgisi girin. Bu açıklama ürün sayfasında 'Ürün Detayı' butonuyla gösterilecektir."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -758,6 +780,60 @@ export default function AdminProducts() {
                 {formData.sizes.length > 0 && (
                   <p className="text-sm text-gray-600 mt-1">
                     Seçili bedenler: {formData.sizes.join(", ")}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Ön Sipariş Bedenleri
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    "XS",
+                    "S",
+                    "M",
+                    "L",
+                    "XL",
+                    "XXL",
+                    "36",
+                    "38",
+                    "40",
+                    "42",
+                    "44",
+                  ].map((size) => (
+                    <label key={size} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={formData.pre_order_sizes.includes(size)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData({
+                              ...formData,
+                              pre_order_sizes: [
+                                ...formData.pre_order_sizes,
+                                size,
+                              ],
+                            });
+                          } else {
+                            setFormData({
+                              ...formData,
+                              pre_order_sizes: formData.pre_order_sizes.filter(
+                                (s) => s !== size
+                              ),
+                            });
+                          }
+                        }}
+                        className="mr-2"
+                      />
+                      {size}
+                    </label>
+                  ))}
+                </div>
+                {formData.pre_order_sizes.length > 0 && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    Seçili ön sipariş bedenleri:{" "}
+                    {formData.pre_order_sizes.join(", ")}
                   </p>
                 )}
               </div>

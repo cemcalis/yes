@@ -289,14 +289,24 @@ export default function ProductPage() {
         </Link>
         <span>/</span>
         <span className="text-foreground">{product.name}</span>
+          {product.slogan && (
+            <div className="text-sm italic text-foreground/70 mb-4">{product.slogan}</div>
+          )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
         {/* Images */}
-        <div>
-          <div className="relative aspect-3/4 bg-muted rounded-lg overflow-hidden mb-4">
-            {allImages.length > 0 && allImages[selectedImage] ? (
-              <Image
+            <div className="text-sm text-foreground/70 leading-relaxed bg-gray-50 p-4 rounded-lg">
+              {product.description ? (
+                product.description.split(/\r?\n/).map((line, idx) => (
+                  <p className="mb-2" key={idx}>
+                    {line}
+                  </p>
+                ))
+              ) : (
+                "Bu ürün için açıklama henüz eklenmemiştir."
+              )}
+            </div>
                 src={allImages[selectedImage]}
                 alt={product.name}
                 fill
@@ -341,22 +351,18 @@ export default function ProductPage() {
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+            {/* Eğer stokta olmayan bedenler varsa, kullanıcıyı ön sipariş formuna yönlendir */}
+            {product.variants && product.variants.some((v) => v.stock === 0) && (
+              <p className="text-sm text-foreground/60 mt-3">
+                Bedeni stokta olmayan ürünler için <button
+                  type="button"
+                  onClick={() => setShowSizeRequest(true)}
+                  className="text-primary underline"
+                >ön sipariş formunu</button> doldurabilirsiniz.
+              </p>
+            )}
                       <span className="text-xs text-gray-500">No Image</span>
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Product Info */}
-        <div>
-          <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
-
-          <div className="flex items-center gap-3 mb-6">
-            <span className="text-3xl font-bold">
-              {product.price.toLocaleString("tr-TR")} TL
+              {/* Özel talepler artık beden seçimi altında gösteriliyor */}
             </span>
             {product.compare_price && (
               <>
@@ -517,7 +523,13 @@ export default function ProductPage() {
                     </h4>
                     {hasAdminDescription && (
                       <div className="text-gray-700 font-light leading-relaxed">
-                        {product.admin_description}
+                        {product.admin_description
+                          .split(/\r?\n/)
+                          .map((line, i) => (
+                            <p className="mb-2" key={i}>
+                              {line}
+                            </p>
+                          ))}
                       </div>
                     )}
                   </div>

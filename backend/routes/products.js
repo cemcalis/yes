@@ -139,12 +139,14 @@ router.post('/', adminAuth, async (req, res) => {
     name,
     slug,
     description,
+    slogan,
     price,
     compare_price,
     category_id,
     image_url,
     images,
     stock_status,
+    pre_order_sizes = [],
     is_featured,
     pre_order = false,
     is_new,
@@ -154,24 +156,26 @@ router.post('/', adminAuth, async (req, res) => {
   const imagesJson = images ? JSON.stringify(images) : null;
 
   const insertQuery = `
-    INSERT INTO products (name, slug, description, price, compare_price, category_id, image_url, images, stock_status, pre_order, is_featured, is_new, is_active)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO products (name, slug, description, slogan, price, compare_price, category_id, image_url, images, stock_status, pre_order_sizes, pre_order, is_featured, is_new, is_active)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const params = [
     name,
     slug,
     description,
+    slogan || null,
     price,
     compare_price || null,
     category_id || null,
     image_url || null,
     imagesJson,
     stock_status || 'in_stock',
-    pre_order === true || pre_order === 'true',
-    is_featured === true || is_featured === 'true',
-    is_new === true || is_new === 'true',
-    is_active === true || is_active === 'true'
+    Array.isArray(pre_order_sizes) ? pre_order_sizes.join(',') : (pre_order_sizes || null),
+    Number(Boolean(pre_order)),
+    Number(Boolean(is_featured)),
+    Number(Boolean(is_new)),
+    Number(Boolean(is_active))
   ];
 
   try {

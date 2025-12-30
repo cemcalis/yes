@@ -11,6 +11,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { user, token, isLoading } = useAuth();
   const { items, total } = useCart();
+  const shipping = 49.9;
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -365,17 +366,21 @@ export default function CheckoutPage() {
             <div className="space-y-3 mb-4 pb-4 border-b border-border">
               <div className="flex justify-between text-sm">
                 <span className="text-foreground/60">Ara Toplam</span>
-                <span className="font-medium">1.250,00 TL</span>
+                <span className="font-medium">
+                  {total.toLocaleString("tr-TR")} TL
+                </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-foreground/60">Kargo</span>
-                <span className="font-medium">49,90 TL</span>
+                <span className="font-medium">
+                  {shipping.toLocaleString("tr-TR")} TL
+                </span>
               </div>
             </div>
 
             <div className="flex justify-between text-lg font-bold mb-4">
               <span>Toplam</span>
-              <span>1.299,90 TL</span>
+              <span>{(total + shipping).toLocaleString("tr-TR")} TL</span>
             </div>
 
             <Link

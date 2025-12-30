@@ -435,6 +435,7 @@ router.put('/products/:id', adminAuth, async (req, res) => {
       name,
       description,
       admin_description,
+      slogan,
       price,
       compare_price,
       image,
@@ -443,6 +444,7 @@ router.put('/products/:id', adminAuth, async (req, res) => {
       stock = 100,
       sizes = [],
       colors = [],
+      pre_order_sizes = [],
       is_featured = false,
       pre_order = false,
       is_new = false,
@@ -470,20 +472,46 @@ router.put('/products/:id', adminAuth, async (req, res) => {
 
     await dbRun(`
       UPDATE products
-      SET name = $1, slug = $2, description = $3, admin_description = $4, price = $5, compare_price = $6, image_url = $7, images = $8, category_id = $9, stock_status = $10, pre_order = $11, is_featured = $12, is_new = $13, is_active = $14, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $15
-    `, [name, slug, description, admin_description, price, compare_price, image, imagesJson, category_id, stock > 0 ? 'in_stock' : 'out_of_stock', Boolean(pre_order), is_featured, is_new, Boolean(is_active), id]);
+      SET name = $1, slug = $2, description = $3, admin_description = $4, slogan = $5, price = $6, compare_price = $7, image_url = $8, images = $9, category_id = $10, stock_status = $11, pre_order_sizes = $12, pre_order = $13, is_featured = $14, is_new = $15, is_active = $16, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $17
+    `, [
+      name,
+      slug,
+      description,
+      admin_description,
+      slogan || null,
+      price,
+      compare_price,
+      image,
+      imagesJson,
+      category_id,
+      stock > 0 ? 'in_stock' : 'out_of_stock',
+      Array.isArray(pre_order_sizes) ? pre_order_sizes.join(',') : (pre_order_sizes || null),
+      Number(Boolean(pre_order)),
+      Number(Boolean(is_featured)),
+      Number(Boolean(is_new)),
+      Number(Boolean(is_active)),
+      id
+    ]);
 
-    // Delete existing variants for this product
-    await dbRun('DELETE FROM variants WHERE product_id = $1', [id]);
+    // Update variants only if sizes/colors/pre_order_sizes provided
+    if ((Array.isArray(sizes) && sizes.length > 0) || (Array.isArray(colors) && colors.length > 0) || (Array.isArray(pre_order_sizes) && pre_order_sizes.length > 0)) {
+      // Delete existing variants for this product
+      await dbRun('DELETE FROM variants WHERE product_id = $1', [id]);
 
-    // Insert new variants without duplicates
-    const variantsToInsert = buildUniqueVariants(sizes, colors);
-    for (const variant of variantsToInsert) {
-      await dbRun(`
-        INSERT INTO variants (product_id, size, color, stock)
-        VALUES ($1, $2, $3, $4)
-      `, [id, variant.size, variant.color, stock]);
+      // If product is pre_order, include pre_order_sizes in variant creation
+      let sizesToUse = Array.isArray(sizes) ? sizes.slice() : [];
+      if (pre_order) {
+        sizesToUse = Array.from(new Set([...(sizesToUse || []), ...(pre_order_sizes || [])]));
+      }
+
+      const variantsToInsert = buildUniqueVariants(sizesToUse, colors);
+      for (const variant of variantsToInsert) {
+        await dbRun(`
+          INSERT INTO variants (product_id, size, color, stock)
+          VALUES ($1, $2, $3, $4)
+        `, [id, variant.size, variant.color, stock]);
+      }
     }
 
     res.json({
@@ -505,6 +533,7 @@ router.post('/products', adminAuth, async (req, res) => {
     const {
       name,
       description,
+        slogan,
       price,
       compare_price,
       image,
@@ -513,10 +542,11 @@ router.post('/products', adminAuth, async (req, res) => {
       stock = 100,
       sizes = [],
       colors = [],
-      is_featured = false,
-      pre_order = false,
-      is_new = false,
-      is_active = true
+        pre_order_sizes = [],
+        is_featured = false,
+        pre_order = false,
+        is_new = false,
+        is_active = true
     } = req.body;
 
     // Validation
@@ -550,10 +580,26 @@ router.post('/products', adminAuth, async (req, res) => {
 
     // Insert product
     const result = await dbQuery(
-      `INSERT INTO products (name, slug, description, price, compare_price, image_url, images, category_id, stock, pre_order, is_featured, is_new, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      `INSERT INTO products (name, slug, description, slogan, price, compare_price, image_url, images, category_id, stock, pre_order_sizes, pre_order, is_featured, is_new, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING id`
-      , [name, slug, description, price, compare_price, image, imagesJson, category_id, stock, Boolean(pre_order), is_featured, is_new, Boolean(is_active)]
+      , [
+        name,
+        slug,
+        description,
+        slogan || null,
+        price,
+        compare_price,
+        image,
+        imagesJson,
+        category_id,
+        stock,
+        Array.isArray(pre_order_sizes) ? pre_order_sizes.join(',') : (pre_order_sizes || null),
+        Number(Boolean(pre_order)),
+        Number(Boolean(is_featured)),
+        Number(Boolean(is_new)),
+        Number(Boolean(is_active))
+      ]
     );
 
     const productId = result.rows[0].id;
@@ -561,7 +607,11 @@ router.post('/products', adminAuth, async (req, res) => {
     console.log('Product created with ID:', productId, 'Result:', result);
 
     // Insert variants (sizes and colors) without duplicates
-    const variantsToInsert = buildUniqueVariants(sizes, colors);
+    let sizesToUse = Array.isArray(sizes) ? sizes.slice() : [];
+    if (pre_order) {
+      sizesToUse = Array.from(new Set([...(sizesToUse || []), ...(pre_order_sizes || [])]));
+    }
+    const variantsToInsert = buildUniqueVariants(sizesToUse, colors);
     for (const variant of variantsToInsert) {
       await dbRun(`
         INSERT INTO variants (product_id, size, color, stock)
