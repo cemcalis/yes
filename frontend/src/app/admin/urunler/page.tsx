@@ -246,15 +246,23 @@ export default function AdminProducts() {
         if (res.ok) {
           const json = await res.json();
           const p = json.data || json;
-          const sizesFromVariants = Array.isArray(p.variants)
+          const sizesFromVariants: string[] = Array.isArray(p.variants)
             ? Array.from(
-                new Set(p.variants.map((v: any) => v.size).filter(Boolean))
-              )
+                new Set(
+                  p.variants
+                    .map((v: any) => (v && v.size ? String(v.size).trim() : null))
+                    .filter(Boolean)
+                )
+              ) as string[]
             : [];
-          const colorsFromVariants = Array.isArray(p.variants)
+          const colorsFromVariants: string[] = Array.isArray(p.variants)
             ? Array.from(
-                new Set(p.variants.map((v: any) => v.color).filter(Boolean))
-              )
+                new Set(
+                  p.variants
+                    .map((v: any) => (v && v.color ? String(v.color).trim() : null))
+                    .filter(Boolean)
+                )
+              ) as string[]
             : [];
 
           setFormData({
