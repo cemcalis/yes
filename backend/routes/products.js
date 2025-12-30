@@ -71,7 +71,12 @@ router.get('/', async (req, res) => {
     const result = await db.query(query, params);
     const products = result.rows.map(p => ({
       ...p,
-      images: parseImages(p.images)
+      images: parseImages(p.images),
+      pre_order: Boolean(p.pre_order),
+      is_featured: Boolean(p.is_featured),
+      is_new: Boolean(p.is_new),
+      is_active: Boolean(p.is_active),
+      pre_order_sizes: p.pre_order_sizes || null
     }));
     res.json(products);
   } catch (error) {
@@ -102,6 +107,12 @@ router.get('/:slug', async (req, res) => {
     product.variants = variantsResult.rows;
 
     product.images = parseImages(product.images);
+    product.pre_order = Boolean(product.pre_order);
+    product.is_featured = Boolean(product.is_featured);
+    product.is_new = Boolean(product.is_new);
+    product.is_active = Boolean(product.is_active);
+    product.pre_order_sizes = product.pre_order_sizes || null;
+
     res.json(product);
   } catch (error) {
     console.error('Product detail error:', error);

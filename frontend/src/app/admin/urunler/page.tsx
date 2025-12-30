@@ -148,7 +148,9 @@ export default function AdminProducts() {
     const productData = {
       name: formData.name,
       description: formData.description,
-      admin_description: formData.admin_description,
+      admin_description: formData.admin_description
+        ? formData.admin_description.replace(/\r\n/g, "\n")
+        : formData.admin_description,
       slogan: formData.slogan,
       price: parseFloat(formData.price),
       compare_price: formData.comparePrice
@@ -233,35 +235,116 @@ export default function AdminProducts() {
   };
 
   const handleEdit = (product: Product) => {
-    console.log("handleEdit called with product:", product);
     setEditingProduct(product);
-    setFormData({
-      name: product.name || "",
-      description: product.description || "",
-      admin_description: product.admin_description || "",
-      slogan: (product as any).slogan || "",
-      price: product.price ? product.price.toString() : "0",
-      comparePrice: product.compare_price
-        ? product.compare_price.toString()
-        : "",
-      image: product.image || "",
-      images: Array.isArray(product.images)
-        ? product.images.join(", ")
-        : product.images || "",
-      category_id: product.category_id ? product.category_id.toString() : "",
-      stock: product.stock ? product.stock.toString() : "0",
-      sizes: product.sizes ? product.sizes.split(",") : [],
-      pre_order_sizes: (product as any).pre_order_sizes
-        ? (product as any).pre_order_sizes.split(",")
-        : [],
-      colors: product.colors ? product.colors.split(",") : [],
-      pre_order: product.pre_order || false,
-      is_featured: product.is_featured || false,
-      is_new: product.is_new || false,
-      is_active: product.is_active !== undefined ? product.is_active : true,
-    });
-    setShowModal(true);
-    console.log("showModal set to true");
+    // Fetch full product details (including variants) from admin API to avoid losing sizes/colors
+    (async () => {
+      try {
+        const token = localStorage.getItem("adminToken");
+        const res = await fetch(`/api/admin/products/${product.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const p = json.data || json;
+          const sizesFromVariants = Array.isArray(p.variants)
+            ? Array.from(
+                new Set(p.variants.map((v: any) => v.size).filter(Boolean))
+              )
+            : [];
+          const colorsFromVariants = Array.isArray(p.variants)
+            ? Array.from(
+                new Set(p.variants.map((v: any) => v.color).filter(Boolean))
+              )
+            : [];
+
+          setFormData({
+            name: p.name || "",
+            description: p.description || "",
+            admin_description: p.admin_description || "",
+            slogan: (p as any).slogan || "",
+            price: p.price ? p.price.toString() : "0",
+            comparePrice: p.compare_price ? p.compare_price.toString() : "",
+            image: p.image_url || "",
+            images: Array.isArray(p.images)
+              ? p.images.join(", ")
+              : p.images || "",
+            category_id: p.category_id ? p.category_id.toString() : "",
+            stock: p.stock ? p.stock.toString() : "0",
+            sizes: sizesFromVariants,
+            pre_order_sizes: p.pre_order_sizes
+              ? (p.pre_order_sizes + "").split(",")
+              : [],
+            colors: colorsFromVariants,
+            pre_order: Boolean(p.pre_order),
+            is_featured: Boolean(p.is_featured),
+            is_new: Boolean(p.is_new),
+            is_active: p.is_active !== undefined ? Boolean(p.is_active) : true,
+          });
+          setShowModal(true);
+        } else {
+          // fallback to using list-provided product data
+          setFormData({
+            name: product.name || "",
+            description: product.description || "",
+            admin_description: product.admin_description || "",
+            slogan: (product as any).slogan || "",
+            price: product.price ? product.price.toString() : "0",
+            comparePrice: product.compare_price
+              ? product.compare_price.toString()
+              : "",
+            image: product.image || "",
+            images: Array.isArray(product.images)
+              ? product.images.join(", ")
+              : product.images || "",
+            category_id: product.category_id
+              ? product.category_id.toString()
+              : "",
+            stock: product.stock ? product.stock.toString() : "0",
+            sizes: product.sizes ? product.sizes.split(",") : [],
+            pre_order_sizes: (product as any).pre_order_sizes
+              ? (product as any).pre_order_sizes.split(",")
+              : [],
+            colors: product.colors ? product.colors.split(",") : [],
+            pre_order: product.pre_order || false,
+            is_featured: product.is_featured || false,
+            is_new: product.is_new || false,
+            is_active:
+              product.is_active !== undefined ? product.is_active : true,
+          });
+          setShowModal(true);
+        }
+      } catch (err) {
+        console.error("Failed to load product details for edit:", err);
+        setFormData({
+          name: product.name || "",
+          description: product.description || "",
+          admin_description: product.admin_description || "",
+          slogan: (product as any).slogan || "",
+          price: product.price ? product.price.toString() : "0",
+          comparePrice: product.compare_price
+            ? product.compare_price.toString()
+            : "",
+          image: product.image || "",
+          images: Array.isArray(product.images)
+            ? product.images.join(", ")
+            : product.images || "",
+          category_id: product.category_id
+            ? product.category_id.toString()
+            : "",
+          stock: product.stock ? product.stock.toString() : "0",
+          sizes: product.sizes ? product.sizes.split(",") : [],
+          pre_order_sizes: (product as any).pre_order_sizes
+            ? (product as any).pre_order_sizes.split(",")
+            : [],
+          colors: product.colors ? product.colors.split(",") : [],
+          pre_order: product.pre_order || false,
+          is_featured: product.is_featured || false,
+          is_new: product.is_new || false,
+          is_active: product.is_active !== undefined ? product.is_active : true,
+        });
+        setShowModal(true);
+      }
+    })();
   };
 
   const handleDelete = async (id: number) => {

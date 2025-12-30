@@ -381,7 +381,12 @@ router.get('/products', adminAuth, async (req, res) => {
 
     const products = productsResult.map((p) => ({
       ...p,
-      images: parseImages(p.images)
+      images: parseImages(p.images),
+      pre_order: Boolean(p.pre_order),
+      is_featured: Boolean(p.is_featured),
+      is_new: Boolean(p.is_new),
+      is_active: Boolean(p.is_active),
+      pre_order_sizes: p.pre_order_sizes || null
     }));
 
     const total = parseInt(countResult?.count || 0, 10);
@@ -405,6 +410,47 @@ router.get('/products', adminAuth, async (req, res) => {
       message: 'Ürünler alınamadı',
       error: error.message
     });
+  }
+});
+
+// Get product by id (admin)
+router.get('/products/:id', adminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await dbGet(`SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.id = $1`, [id]);
+    if (!product) return res.status(404).json({ success: false, message: 'Ürün bulunamadı' });
+
+    // Get variants
+    const variants = await dbAll('SELECT * FROM variants WHERE product_id = $1', [id]);
+
+    const parseImagesLocal = (value) => {
+      if (!value) return [];
+      if (Array.isArray(value)) return value;
+      if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) return parsed;
+        } catch {}
+        return value.split(',').map((s) => s.trim()).filter(Boolean);
+      }
+      return [];
+    };
+
+    const result = {
+      ...product,
+      images: parseImagesLocal(product.images),
+      variants,
+      pre_order: Boolean(product.pre_order),
+      is_featured: Boolean(product.is_featured),
+      is_new: Boolean(product.is_new),
+      is_active: Boolean(product.is_active),
+      pre_order_sizes: product.pre_order_sizes || null
+    };
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Get product by id (admin) error:', error);
+    res.status(500).json({ success: false, message: 'Ürün alınamadı' });
   }
 });
 
@@ -496,6 +542,14 @@ router.put('/products/:id', adminAuth, async (req, res) => {
 
     // Update variants only if sizes/colors/pre_order_sizes provided
     if ((Array.isArray(sizes) && sizes.length > 0) || (Array.isArray(colors) && colors.length > 0) || (Array.isArray(pre_order_sizes) && pre_order_sizes.length > 0)) {
+      // Preserve existing variant stock levels where possible
+      const existingVariants = await dbAll('SELECT * FROM variants WHERE product_id = $1', [id]);
+      const existingStockMap = {};
+      for (const ev of existingVariants) {
+        const key = `${ev.size || ''}::${ev.color || ''}`;
+        existingStockMap[key] = ev.stock;
+      }
+
       // Delete existing variants for this product
       await dbRun('DELETE FROM variants WHERE product_id = $1', [id]);
 
@@ -507,10 +561,12 @@ router.put('/products/:id', adminAuth, async (req, res) => {
 
       const variantsToInsert = buildUniqueVariants(sizesToUse, colors);
       for (const variant of variantsToInsert) {
+        const key = `${variant.size || ''}::${variant.color || ''}`;
+        const variantStock = existingStockMap.hasOwnProperty(key) ? existingStockMap[key] : stock;
         await dbRun(`
           INSERT INTO variants (product_id, size, color, stock)
           VALUES ($1, $2, $3, $4)
-        `, [id, variant.size, variant.color, stock]);
+        `, [id, variant.size, variant.color, variantStock]);
       }
     }
 

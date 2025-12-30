@@ -1,8 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState, FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import { useParams } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { FiShoppingBag, FiHeart } from "react-icons/fi";
@@ -19,12 +18,14 @@ interface Product {
   slug: string;
   description: string;
   admin_description?: string;
+  slogan?: string;
   price: number;
   compare_price?: number;
   image_url: string;
   images: string[];
   stock_status: string;
   pre_order?: boolean;
+  pre_order_sizes?: string;
   category_name: string;
   category_slug: string;
   variants?: {
@@ -77,8 +78,10 @@ export default function ProductPage() {
   const [quantity, setQuantity] = useState<number>(1);
   const [submittingReview, setSubmittingReview] = useState(false);
   const [newReview, setNewReview] = useState({ rating: 5, comment: "" });
+
   const [showSizeRequest, setShowSizeRequest] = useState(false);
   const [showAdminDescription, setShowAdminDescription] = useState(false);
+
   const [sizeRequest, setSizeRequest] = useState({
     name: "",
     email: "",
@@ -102,11 +105,11 @@ export default function ProductPage() {
   const { isFavorite, addToFavorites, removeFromFavorites } = useFavorites();
   const { addToCart } = useCart();
   const { showToast } = useToast();
-
   const router = useRouter();
 
   useEffect(() => {
     fetchProduct();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
   const fetchProduct = async () => {
@@ -138,6 +141,20 @@ export default function ProductPage() {
                 <div key={i} className="aspect-square bg-muted rounded-md" />
               ))}
             </div>
+            {/* Message + clickable link to open size-request form when any variant is out of stock */}
+            {product?.variants?.some((v: any) => v.stock === 0) && (
+              <p
+                role="button"
+                onClick={() => {
+                  console.log('open sizeRequest (loading)');
+                  setSizeRequest(prev => ({ ...prev, productName: product?.name || "" }));
+                  setShowSizeRequest(true);
+                }}
+                className="mt-2 text-sm text-gray-600 hover:underline cursor-pointer"
+              >
+                Bedeni stokta olmayan ürünler için ön sipariş formunu doldurabilirsiniz.
+              </p>
+            )}
           </div>
           <div>
             <div className="h-8 bg-muted rounded mb-4 w-3/4" />
@@ -164,14 +181,13 @@ export default function ProductPage() {
     const qty = quantity || 1;
     try {
       await addToCart(product.id, {
-        variant_id: undefined, // Simdilik variant yok
+        variant_id: undefined, // şimdilik variant yok
         quantity: qty,
         price: product.price,
         name: product.name,
         image_url: product.image_url,
         size: selectedSize,
       });
-
       showToast("Urun sepete eklendi", "success");
     } catch (err) {
       console.error("Sepete eklenirken hata:", err);
@@ -186,7 +202,6 @@ export default function ProductPage() {
       return;
     }
 
-    // Normal ön sipariş işlemi
     try {
       const token = localStorage.getItem("token");
       if (!token) {
@@ -289,24 +304,14 @@ export default function ProductPage() {
         </Link>
         <span>/</span>
         <span className="text-foreground">{product.name}</span>
-          {product.slogan && (
-            <div className="text-sm italic text-foreground/70 mb-4">{product.slogan}</div>
-          )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
         {/* Images */}
-            <div className="text-sm text-foreground/70 leading-relaxed bg-gray-50 p-4 rounded-lg">
-              {product.description ? (
-                product.description.split(/\r?\n/).map((line, idx) => (
-                  <p className="mb-2" key={idx}>
-                    {line}
-                  </p>
-                ))
-              ) : (
-                "Bu ürün için açıklama henüz eklenmemiştir."
-              )}
-            </div>
+        <div>
+          <div className="relative aspect-3/4 bg-muted rounded-lg overflow-hidden mb-4">
+            {allImages.length > 0 && allImages[selectedImage] ? (
+              <Image
                 src={allImages[selectedImage]}
                 alt={product.name}
                 fill
@@ -351,66 +356,61 @@ export default function ProductPage() {
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-            {/* Eğer stokta olmayan bedenler varsa, kullanıcıyı ön sipariş formuna yönlendir */}
-            {product.variants && product.variants.some((v) => v.stock === 0) && (
-              <p className="text-sm text-foreground/60 mt-3">
-                Bedeni stokta olmayan ürünler için <button
-                  type="button"
-                  onClick={() => setShowSizeRequest(true)}
-                  className="text-primary underline"
-                >ön sipariş formunu</button> doldurabilirsiniz.
-              </p>
-            )}
                       <span className="text-xs text-gray-500">No Image</span>
-              {/* Özel talepler artık beden seçimi altında gösteriliyor */}
-            </span>
-            {product.compare_price && (
-              <>
-                <span className="text-xl text-foreground/50 line-through">
-                  {product.compare_price.toLocaleString("tr-TR")} TL
-                </span>
-                {!!discount && (
-                  <span className="text-sm font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
-                    %{discount} indirim
-                  </span>
-                )}
-              </>
-            )}
-          </div>
-
-          <div className="mb-8">
-            <h3 className="font-semibold text-lg text-gray-900 mb-4">
-              Ürün Açıklaması
-            </h3>
-            <div className="text-sm text-foreground/70 leading-relaxed bg-gray-50 p-4 rounded-lg">
-              {product.description ||
-                "Bu ürün için açıklama henüz eklenmemiştir."}
+                    </div>
+                  )}
+                </button>
+              ))}
             </div>
+          )}
+        </div>
+
+        {/* Product Details */}
+        <div>
+          <h1 className="text-2xl font-bold text-foreground mb-2">
+            {product.name}
+          </h1>
+
+          {product.slogan && (
+            <div className="text-sm italic text-foreground/70 mb-4">
+              {product.slogan}
+            </div>
+          )}
+
+          <div className="mb-6 text-sm text-foreground/70 leading-relaxed bg-gray-50 p-4 rounded-lg">
+            {product.description
+              ? product.description.split("\n").map((line, idx) => (
+                  <p className="mb-2" key={idx}>
+                    {line}
+                  </p>
+                ))
+              : "Bu ürün için açıklama henüz eklenmemiştir."}
           </div>
 
           {/* Size Selection */}
           <div className="mb-6">
             <label className="block font-medium mb-3">Beden Seçin</label>
+
             <div className="flex gap-2 flex-wrap">
-              {/* Mevcut variantlar */}
               {product.variants && product.variants.length > 0
                 ? product.variants
                     .filter((variant) => variant.stock > 0 || product.pre_order)
                     .map((variant) => (
                       <button
                         key={variant.id}
-                        onClick={() => {
-                          if (variant.stock > 0) {
-                            setSelectedSize(variant.size);
-                          } else if (!product.pre_order) {
-                            setSizeRequest({
-                              ...sizeRequest,
-                              productName: product.name,
-                              size: variant.size,
-                            });
-                            setShowSizeRequest(true);
-                          }
-                        }}
+                          onClick={() => {
+                            if (variant.stock > 0) {
+                              setSelectedSize(variant.size);
+                            } else if (!product.pre_order) {
+                              console.log('open sizeRequest (variant-click)', variant.size, product?.name);
+                              setSizeRequest({
+                                ...sizeRequest,
+                                productName: product.name,
+                                size: variant.size,
+                              });
+                              setShowSizeRequest(true);
+                            }
+                          }}
                         disabled={variant.stock === 0 && !product.pre_order}
                         className={`px-4 py-2 border rounded-md transition-colors font-semibold ${
                           selectedSize === variant.size
@@ -432,7 +432,23 @@ export default function ProductPage() {
                     ))
                 : null}
             </div>
+
+            {/* Preorder prompt under size options */}
+            {(product.pre_order || (product.variants && product.variants.some((v) => v.stock === 0))) && (
+              <p className="text-sm text-foreground/60 mt-3">
+                Bedeni stokta olmayan ürünler için{" "}
+                  <button
+                    type="button"
+                    onClick={() => { console.log('open sizeRequest (preorder-prompt)'); setShowSizeRequest(true); }}
+                    className="text-primary underline"
+                  >
+                    ön sipariş formunu
+                  </button>{" "}
+                doldurabilirsiniz.
+              </p>
+            )}
           </div>
+
           <div className="mb-6">
             <label className="block font-medium mb-3">Adet</label>
             <div className="flex items-center gap-3">
@@ -444,9 +460,11 @@ export default function ProductPage() {
               >
                 -
               </button>
+
               <span className="w-12 text-center font-medium text-gray-900">
                 {quantity}
               </span>
+
               <button
                 type="button"
                 onClick={increaseQuantity}
@@ -456,24 +474,10 @@ export default function ProductPage() {
                 +
               </button>
 
-              {/* Özel Talepler badge + Talep bırak link (pre-order ürünler için) */}
-              {product.pre_order && (
-                <div className="ml-4 flex items-center gap-2">
-                  <span className="text-sm font-semibold text-gray-700 bg-gray-100 px-2 py-1 rounded">
-                    Özel Talepler
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowSizeRequest(true)}
-                    className="text-sm text-gray-600 hover:underline"
-                  >
-                    Talep bırak
-                  </button>
-                </div>
-              )}
+              {/* Special requests moved below size selection */}
 
-              {/* Admin Özel Açıklama Butonu - Sadece ön sipariş ve açıklama varsa göster */}
-              {isPreOrder && hasAdminDescription && (
+              {/* Admin description button for preorder products */}
+              {hasAdminDescription && (
                 <button
                   onClick={() => setShowAdminDescription(!showAdminDescription)}
                   className="ml-4 px-4 py-2 text-sm bg-gradient-to-r from-champagne-contrast/10 to-champagne-contrast/20 hover:from-champagne-contrast/20 hover:to-champagne-contrast/30 text-champagne-contrast border border-champagne-contrast/30 rounded-lg transition-all duration-300 flex items-center gap-2 font-medium shadow-sm hover:shadow-md"
@@ -499,7 +503,7 @@ export default function ProductPage() {
             </div>
 
             {/* Admin Açıklama İçeriği - Tıklanınca göster */}
-            {showAdminDescription && isPreOrder && hasAdminDescription && (
+            {showAdminDescription && hasAdminDescription && (
               <div className="mt-4 p-6 bg-gradient-to-br from-white via-champagne-contrast/5 to-champagne-contrast/10 border border-champagne-contrast/20 rounded-xl text-sm text-gray-700 leading-relaxed shadow-lg backdrop-blur-sm animate-in slide-in-from-top-2 duration-300">
                 <div className="flex items-start gap-3">
                   <div className="flex-shrink-0 w-8 h-8 bg-champagne-contrast/20 rounded-full flex items-center justify-center">
@@ -521,17 +525,15 @@ export default function ProductPage() {
                     <h4 className="font-semibold text-champagne-contrast mb-2 text-base">
                       Ürün Detayları
                     </h4>
-                    {hasAdminDescription && (
-                      <div className="text-gray-700 font-light leading-relaxed">
-                        {product.admin_description
-                          .split(/\r?\n/)
-                          .map((line, i) => (
-                            <p className="mb-2" key={i}>
-                              {line}
-                            </p>
-                          ))}
-                      </div>
-                    )}
+                    <div className="text-gray-700 font-light leading-relaxed">
+                      {product.admin_description
+                        ?.split(/\r?\n/)
+                        .map((line, i) => (
+                          <p className="mb-2" key={i}>
+                            {line}
+                          </p>
+                        ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -551,6 +553,7 @@ export default function ProductPage() {
               <FiShoppingBag />
               Sepete Ekle
             </button>
+
             <button
               onClick={() => {
                 if (!user) {
@@ -573,36 +576,9 @@ export default function ProductPage() {
             </button>
           </div>
         </div>
-
-        {/* Product Details */}
-        <div className="border-t border-border pt-6 space-y-4 text-sm">
-          <div className="flex justify-between">
-            <span className="text-foreground/60">Kategori:</span>
-            <Link
-              href={`/koleksiyon/${product.category_slug}`}
-              className="font-medium hover:text-secondary"
-            >
-              {product.category_name}
-            </Link>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-foreground/60">Stok Durumu:</span>
-            <span
-              className={
-                product.stock_status === "in_stock"
-                  ? "text-green-600"
-                  : "text-red-600"
-              }
-            >
-              {product.stock_status === "in_stock" ? "Stokta" : "Tükendi"}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-foreground/60">Kargo:</span>
-            <span className="font-medium">2-3 iş günü</span>
-          </div>
-        </div>
       </div>
+
+      {/* ✅ Size Request Modal (düzeltildi) */}
       {showSizeRequest && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full overflow-hidden">
@@ -616,6 +592,7 @@ export default function ProductPage() {
                   setSizeRequestStatus("idle");
                 }}
                 className="text-gray-400 hover:text-gray-600"
+                type="button"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -627,6 +604,7 @@ export default function ProductPage() {
                 kapsamındadır. Uygunluk ve süreç bilgisi için talebinizi
                 bırakabilirsiniz.
               </p>
+
               <form className="space-y-4" onSubmit={handleSizeRequestSubmit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
@@ -646,6 +624,7 @@ export default function ProductPage() {
                       }
                     />
                   </div>
+
                   <div className="space-y-1">
                     <label className="text-xs text-gray-600">
                       E-posta Adresi{" "}
@@ -664,6 +643,7 @@ export default function ProductPage() {
                       }
                     />
                   </div>
+
                   <div className="space-y-1">
                     <label className="text-xs text-gray-600">
                       Telefon Numarası{" "}
@@ -681,6 +661,7 @@ export default function ProductPage() {
                       }
                     />
                   </div>
+
                   <div className="space-y-1">
                     <label className="text-xs text-gray-600">Ürün Adı</label>
                     <input
