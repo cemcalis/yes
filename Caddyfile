@@ -1,23 +1,21 @@
-www.ravorcollection.com {
-	# Redirect www to the apex (canonical) domain
-	redir https://ravorcollection.com{uri} permanent
-}
-
-ravorcollection.com {
+ravorcollection.com, www.ravorcollection.com {
 	encode gzip
 
+	# Redirect requests that came to www to the apex canonical domain
+	@host_www {
+		host www.ravorcollection.com
+	}
+	redir @host_www https://ravorcollection.com{uri} permanent
+
 	# Reverse proxy API requests to backend service in the Docker network
-	reverse_proxy /api/* backend:5000
+	@api {
+		path /api/*
+	}
+	reverse_proxy @api backend:5000
 
 	# Proxy everything else to the frontend (Next.js) service
 	reverse_proxy /* frontend:3000
 
-	# Optional: serve static uploads directly from a mounted path
-	# ensure the volume mounts the frontend/public folder to /srv/app/frontend/public
-	# file_server /uploads/* {
-	#   root /srv/app/frontend/public
-	# }
-
-	# Obtain TLS automatically via Let's Encrypt
+	# Obtain TLS automatically via Let's Encrypt for both names
 	tls admin@ravorcollection.com
 }
