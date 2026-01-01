@@ -40,6 +40,8 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+const MAX_UPLOAD_SIZE = process.env.UPLOAD_MAX_FILE_SIZE ? parseInt(process.env.UPLOAD_MAX_FILE_SIZE, 10) : 50 * 1024 * 1024; // default 50MB
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
   filename: (req, file, cb) => {
@@ -50,15 +52,14 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  fileFilter: (req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-    if (allowed.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Sadece resim dosyaları yüklenebilir'));
+  fileFilter: function (req, file, cb) {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (allowedMimes.has(file.mimetype) && allowedExts.has(ext)) {
+      return cb(null, true);
     }
-  }
+    cb(new Error('Invalid file type. Only images (including SVG) are allowed'));
+  },
+  limits: { fileSize: MAX_UPLOAD_SIZE }
 });
 
 // ============= PAGES =============

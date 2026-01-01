@@ -3,6 +3,8 @@ services:
     build: ./backend
     env_file:
       - ./backend/.env
+    environment:
+      - UPLOAD_MAX_FILE_SIZE=52428800
     volumes:
       - ./data:/app/data
       - ./backend/public/uploads:/app/public/uploads

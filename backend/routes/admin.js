@@ -41,6 +41,8 @@ const storage = multer.diskStorage({
 const allowedMimes = new Set(['image/svg+xml', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif']);
 const allowedExts = new Set(['.svg', '.png', '.jpeg', '.jpg', '.webp', '.gif']);
 
+const MAX_UPLOAD_SIZE = process.env.UPLOAD_MAX_FILE_SIZE ? parseInt(process.env.UPLOAD_MAX_FILE_SIZE, 10) : 50 * 1024 * 1024; // default 50MB
+
 const upload = multer({
   storage,
   fileFilter: function (req, file, cb) {
@@ -50,7 +52,7 @@ const upload = multer({
     }
     cb(new Error('Invalid file type. Only images (including SVG) are allowed'));
   },
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+  limits: { fileSize: MAX_UPLOAD_SIZE }
 });
 
 // Build unique variant combinations to avoid duplicate sizes/colors
