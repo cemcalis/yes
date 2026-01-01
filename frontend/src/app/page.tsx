@@ -50,7 +50,7 @@ export default function Home() {
         </div>
       </Section>
 
-      <ProductGrid title="ÜRÜNLER" limit={12} />
+      <ProductGrid title="ÜRÜNLER" />
     </>
   );
 }

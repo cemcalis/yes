@@ -4,6 +4,8 @@ const express = require("express");
 const crypto = require("crypto");
 
 const router = express.Router();
+const { dbGet, dbAll, dbRun } = require('../db');
+const logger = require('../lib/logger');
 
 const {
   PAYTR_MERCHANT_ID,
@@ -153,11 +155,70 @@ router.post(
         return res.status(400).send("INVALID_HASH");
       }
 
-      // TODO: sipariş durumunu merchant_oid üzerinden güncelle (success / failed)
-      // status === "success" -> ödemeyi onayla
-      // status === "failed"  -> başarısız kaydet
+      // merchant_oid should match our order id
+      (async () => {
+        try {
+          const orderId = Number(merchant_oid);
+          const order = await dbGet('SELECT * FROM orders WHERE id = $1', [orderId]);
+          if (!order) {
+            logger.error('PayTR callback: order not found', { orderId });
+            return res.status(404).send('ORDER_NOT_FOUND');
+          }
 
-      return res.send("OK");
+          if (status === 'success') {
+            // finalize order: decrement stocks and mark completed
+            await dbRun('BEGIN TRANSACTION');
+
+            const items = await dbAll('SELECT * FROM order_items WHERE order_id = $1', [orderId]);
+
+            // Check stocks first
+            for (const item of items) {
+              if (item.variant_id) {
+                const v = await dbGet('SELECT id, stock FROM variants WHERE id = $1', [item.variant_id]);
+                if (!v || v.stock == null || v.stock < item.quantity) {
+                  await dbRun('ROLLBACK');
+                  logger.error('PayTR callback: insufficient variant stock', { orderId, variant_id: item.variant_id });
+                  await dbRun('UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', ['failed', orderId]);
+                  return res.status(400).send('INSUFFICIENT_STOCK');
+                }
+              } else if (item.product_id) {
+                const p = await dbGet('SELECT id, stock FROM products WHERE id = $1', [item.product_id]);
+                if (!p || p.stock == null || p.stock < item.quantity) {
+                  await dbRun('ROLLBACK');
+                  logger.error('PayTR callback: insufficient product stock', { orderId, product_id: item.product_id });
+                  await dbRun('UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', ['failed', orderId]);
+                  return res.status(400).send('INSUFFICIENT_STOCK');
+                }
+              }
+            }
+
+            // Decrement stocks
+            for (const item of items) {
+              if (item.variant_id) {
+                await dbRun('UPDATE variants SET stock = stock - $1 WHERE id = $2', [item.quantity, item.variant_id]);
+                logger.info(`PayTR: decremented variant ${item.variant_id} by ${item.quantity} for order ${orderId}`);
+              } else if (item.product_id) {
+                await dbRun('UPDATE products SET stock = stock - $1 WHERE id = $2', [item.quantity, item.product_id]);
+                logger.info(`PayTR: decremented product ${item.product_id} by ${item.quantity} for order ${orderId}`);
+              }
+            }
+
+            await dbRun('UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', ['completed', orderId]);
+            await dbRun('COMMIT');
+            logger.info('PayTR callback: order completed', { orderId });
+            return res.send('OK');
+          } else {
+            // payment failed
+            await dbRun('UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', ['failed', orderId]);
+            logger.warn('PayTR callback: payment failed', { orderId });
+            return res.send('OK');
+          }
+        } catch (err) {
+          try { await dbRun('ROLLBACK'); } catch (e) {}
+          console.error('paytr callback processing error', err);
+          return res.status(500).send('ERROR');
+        }
+      })();
     } catch (err) {
       console.error("paytr callback error", err);
       return res.status(500).send("ERROR");

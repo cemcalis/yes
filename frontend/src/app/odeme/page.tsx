@@ -102,15 +102,51 @@ export default function CheckoutPage() {
         price: item.price,
       }));
 
-      const data = await api.createOrder({
+      // 1) create order in pending state
+      const createResp = await api.createOrder({
         customer_name: formData.name,
         customer_email: formData.email,
         customer_phone: formData.phone,
-        customer_address: formData.address,
+        shipping_address: formData.address,
         items: orderItems,
         total: total,
+        total_amount: total,
       });
-      router.push(`/siparis-basarili?order_id=${data.order_id}`);
+
+      const orderId = createResp.order_id;
+
+      // 2) initiate PayTR payment
+      const basket = items.map((it) => [
+        it.name || "",
+        (Number(it.price) || 0).toFixed(2),
+        String(it.quantity),
+      ]);
+      const payInitResp = await fetch("/api/payments/paytr/init", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order_id: String(orderId),
+          email: formData.email,
+          amount: Math.round(Number(total) * 100), // kuruş
+          basket,
+          user_name: formData.name,
+          user_phone: formData.phone,
+        }),
+      });
+
+      if (!payInitResp.ok) {
+        const err = await payInitResp.json().catch(() => null);
+        setError((err && err.error) || "Ödeme başlatılamadı");
+        return;
+      }
+
+      const payData = await payInitResp.json();
+      if (payData && payData.iframe_url) {
+        // Redirect user to PayTR hosted payment
+        window.location.href = payData.iframe_url;
+      } else {
+        setError("Ödeme başlatılamadı (token alınamadı)");
+      }
     } catch (err: any) {
       setError(err.message || "Bir hata oluştu");
     } finally {

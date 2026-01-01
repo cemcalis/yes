@@ -40,6 +40,22 @@ const parseImageList = (value?: string | string[]) => {
 };
 
 export default function AdminProducts() {
+  // Safe JSON parser: if response is not JSON (e.g., HTML error page),
+  // return null and log the raw text for debugging to avoid uncaught SyntaxError
+  const safeParseJson = async (res: Response) => {
+    try {
+      const text = await res.text();
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        console.error("Non-JSON response body:", text.substring(0, 1000));
+        return null;
+      }
+    } catch (err) {
+      console.error("Failed to read response text for debugging", err);
+      return null;
+    }
+  };
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,8 +107,12 @@ export default function AdminProducts() {
       }
 
       if (response.ok) {
-        const data = await response.json();
-        setProducts(data.data.products);
+        const data = await safeParseJson(response);
+        if (data && data.data && Array.isArray(data.data.products)) {
+          setProducts(data.data.products);
+        } else {
+          console.error("Unexpected /api/admin/products response", data);
+        }
       }
     } catch (error) {
       console.error("Error fetching products:", error);
@@ -123,8 +143,12 @@ export default function AdminProducts() {
       }
 
       if (response.ok) {
-        const data = await response.json();
-        setCategories(data.data);
+        const data = await safeParseJson(response);
+        if (data && data.data) {
+          setCategories(data.data);
+        } else {
+          console.error("Unexpected /api/admin/categories response", data);
+        }
       }
     } catch (error) {
       console.error("Error fetching categories:", error);
@@ -217,14 +241,12 @@ export default function AdminProducts() {
       });
 
       if (!res.ok) {
-        const err = await res
-          .json()
-          .catch(() => ({ message: "Yükleme hatası" }));
-        alert(err.message || "Yükleme başarısız");
+        const err = await safeParseJson(res);
+        alert((err && err.message) || "Yükleme başarısız");
         return;
       }
 
-      const data = await res.json();
+      const data = await safeParseJson(res);
       if (data && data.url) {
         setFormData((prev) => ({ ...prev, image: data.url }));
       }
@@ -244,25 +266,29 @@ export default function AdminProducts() {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
-          const json = await res.json();
-          const p = json.data || json;
+          const json = await safeParseJson(res);
+          const p = json && json.data ? json.data : json;
           const sizesFromVariants: string[] = Array.isArray(p.variants)
-            ? Array.from(
+            ? (Array.from(
                 new Set(
                   p.variants
-                    .map((v: any) => (v && v.size ? String(v.size).trim() : null))
+                    .map((v: any) =>
+                      v && v.size ? String(v.size).trim() : null
+                    )
                     .filter(Boolean)
                 )
-              ) as string[]
+              ) as string[])
             : [];
           const colorsFromVariants: string[] = Array.isArray(p.variants)
-            ? Array.from(
+            ? (Array.from(
                 new Set(
                   p.variants
-                    .map((v: any) => (v && v.color ? String(v.color).trim() : null))
+                    .map((v: any) =>
+                      v && v.color ? String(v.color).trim() : null
+                    )
                     .filter(Boolean)
                 )
-              ) as string[]
+              ) as string[])
             : [];
 
           setFormData({

@@ -146,13 +146,17 @@ export default function ProductPage() {
               <p
                 role="button"
                 onClick={() => {
-                  console.log('open sizeRequest (loading)');
-                  setSizeRequest(prev => ({ ...prev, productName: product?.name || "" }));
+                  console.log("open sizeRequest (loading)");
+                  setSizeRequest((prev) => ({
+                    ...prev,
+                    productName: product?.name || "",
+                  }));
                   setShowSizeRequest(true);
                 }}
                 className="mt-2 text-sm text-gray-600 hover:underline cursor-pointer"
               >
-                Bedeni stokta olmayan ürünler için ön sipariş formunu doldurabilirsiniz.
+                Bedeni stokta olmayan ürünler için ön sipariş formunu
+                doldurabilirsiniz.
               </p>
             )}
           </div>
@@ -246,7 +250,14 @@ export default function ProductPage() {
       ? [product.image_url]
       : [];
 
-  const specialSizes = ["XS", "M", "L"];
+  const specialSizes: string[] = product.pre_order_sizes
+    ? Array.isArray(product.pre_order_sizes)
+      ? product.pre_order_sizes
+      : String(product.pre_order_sizes)
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+    : ["XS", "M", "L"];
 
   const handleSizeRequestSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -393,57 +404,62 @@ export default function ProductPage() {
 
             <div className="flex gap-2 flex-wrap">
               {product.variants && product.variants.length > 0
-                ? product.variants
-                    .filter((variant) => variant.stock > 0 || product.pre_order)
-                    .map((variant) => (
-                      <button
-                        key={variant.id}
-                          onClick={() => {
-                            if (variant.stock > 0) {
-                              setSelectedSize(variant.size);
-                            } else if (!product.pre_order) {
-                              console.log('open sizeRequest (variant-click)', variant.size, product?.name);
-                              setSizeRequest({
-                                ...sizeRequest,
-                                productName: product.name,
-                                size: variant.size,
-                              });
-                              setShowSizeRequest(true);
-                            }
-                          }}
-                        disabled={variant.stock === 0 && !product.pre_order}
-                        className={`px-4 py-2 border rounded-md transition-colors font-semibold ${
-                          selectedSize === variant.size
-                            ? "border-champagne-contrast/60 hover:border-champagne-contrast/80 text-champagne-contrast bg-white shadow-sm ring-1 ring-champagne-contrast/30"
-                            : variant.stock > 0
-                            ? "border-gray-300 hover:border-champagne-contrast/40 text-gray-700 bg-white"
-                            : product.pre_order
-                            ? "border-champagne-contrast/40 text-champagne-contrast bg-champagne-contrast/10 hover:bg-champagne-contrast/20"
-                            : "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
-                        }`}
-                      >
-                        {variant.size}
-                        {variant.stock === 0 && (
-                          <span className="text-xs block">
-                            {product.pre_order ? "Ön Sipariş" : "Talep Oluştur"}
-                          </span>
-                        )}
-                      </button>
-                    ))
+                ? product.variants.map((variant) => (
+                    <button
+                      key={variant.id}
+                      onClick={() => {
+                        if (variant.stock > 0) {
+                          setSelectedSize(variant.size);
+                        } else {
+                          console.log(
+                            "open sizeRequest (variant-click)",
+                            variant.size,
+                            product?.name
+                          );
+                          setSizeRequest({
+                            ...sizeRequest,
+                            productName: product.name,
+                            size: variant.size,
+                          });
+                          setShowSizeRequest(true);
+                        }
+                      }}
+                      disabled={variant.stock === 0}
+                      className={`px-4 py-2 border rounded-md transition-colors font-semibold ${
+                        selectedSize === variant.size
+                          ? "border-champagne-contrast/60 hover:border-champagne-contrast/80 text-champagne-contrast bg-white shadow-sm ring-1 ring-champagne-contrast/30"
+                          : variant.stock > 0
+                          ? "border-gray-300 hover:border-champagne-contrast/40 text-gray-700 bg-white"
+                          : "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
+                      }`}
+                    >
+                      {variant.size}
+                      {variant.stock === 0 && (
+                        <span className="text-xs block">
+                          {product.pre_order ? "Ön Sipariş" : "Talep Oluştur"}
+                        </span>
+                      )}
+                    </button>
+                  ))
                 : null}
             </div>
 
             {/* Preorder prompt under size options */}
-            {(product.pre_order || (product.variants && product.variants.some((v) => v.stock === 0))) && (
+            {(product.pre_order ||
+              (product.variants &&
+                product.variants.some((v) => v.stock === 0))) && (
               <p className="text-sm text-foreground/60 mt-3">
                 Bedeni stokta olmayan ürünler için{" "}
-                  <button
-                    type="button"
-                    onClick={() => { console.log('open sizeRequest (preorder-prompt)'); setShowSizeRequest(true); }}
-                    className="text-primary underline"
-                  >
-                    ön sipariş formunu
-                  </button>{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log("open sizeRequest (preorder-prompt)");
+                    setShowSizeRequest(true);
+                  }}
+                  className="text-primary underline"
+                >
+                  ön sipariş formunu
+                </button>{" "}
                 doldurabilirsiniz.
               </p>
             )}

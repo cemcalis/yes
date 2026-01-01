@@ -23,9 +23,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RAVOR - Zamansız Tasarımlar",
-  description:
-    "Minimal ve şık kadın giyim koleksiyonu. Elbise, üst, alt giyim ve aksesuarlar. Premium kalite, ücretsiz kargo.",
+  title: "RAVOR",
+  description: "",
   keywords: "kadın giyim, elbise, moda, alışveriş, online alışveriş, tasarım",
   authors: [{ name: "RAVOR" }],
 };

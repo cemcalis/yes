@@ -553,11 +553,8 @@ router.put('/products/:id', adminAuth, async (req, res) => {
       // Delete existing variants for this product
       await dbRun('DELETE FROM variants WHERE product_id = $1', [id]);
 
-      // If product is pre_order, include pre_order_sizes in variant creation
+      // Use only explicitly selected sizes for purchasable variants
       let sizesToUse = Array.isArray(sizes) ? sizes.slice() : [];
-      if (pre_order) {
-        sizesToUse = Array.from(new Set([...(sizesToUse || []), ...(pre_order_sizes || [])]));
-      }
 
       const variantsToInsert = buildUniqueVariants(sizesToUse, colors);
       for (const variant of variantsToInsert) {
@@ -662,11 +659,9 @@ router.post('/products', adminAuth, async (req, res) => {
     
     console.log('Product created with ID:', productId, 'Result:', result);
 
-    // Insert variants (sizes and colors) without duplicates
+    // Insert variants (sizes and colors) without duplicates. Do NOT merge pre_order_sizes here;
+    // pre_order_sizes are stored on product and used for the pre-order form only.
     let sizesToUse = Array.isArray(sizes) ? sizes.slice() : [];
-    if (pre_order) {
-      sizesToUse = Array.from(new Set([...(sizesToUse || []), ...(pre_order_sizes || [])]));
-    }
     const variantsToInsert = buildUniqueVariants(sizesToUse, colors);
     for (const variant of variantsToInsert) {
       await dbRun(`

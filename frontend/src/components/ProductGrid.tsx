@@ -19,14 +19,14 @@ interface Product {
 interface ProductGridProps {
   title: string;
   filter?: "featured" | "new";
-  limit?: number;
+  limit?: number | undefined;
   className?: string;
 }
 
 export default function ProductGrid({
   title,
   filter,
-  limit = 8,
+  limit,
   className,
 }: ProductGridProps) {
   const [products, setProducts] = useState<Product[]>([]);
@@ -45,7 +45,11 @@ export default function ProductGrid({
       const data = await api.getProducts(filters);
       console.log("API Response:", data);
       console.log("Filters:", filters);
-      setProducts(data.slice(0, limit));
+      if (typeof limit === "number" && Number.isInteger(limit) && limit > 0) {
+        setProducts(data.slice(0, limit));
+      } else {
+        setProducts(data);
+      }
     } catch (error) {
       console.error("Ürünler yüklenemedi:", error);
     } finally {
@@ -65,13 +69,21 @@ export default function ProductGrid({
             {title}
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="aspect-3/4 bg-champagne-100 rounded-xl mb-3" />
-                <div className="h-4 bg-champagne-100 rounded mb-2" />
-                <div className="h-4 bg-champagne-100 rounded w-1/2" />
-              </div>
-            ))}
+            {(() => {
+              const skeletonCount =
+                typeof limit === "number" &&
+                Number.isInteger(limit) &&
+                limit > 0
+                  ? limit
+                  : 8;
+              return [...Array(skeletonCount)].map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="aspect-3/4 bg-champagne-100 rounded-xl mb-3" />
+                  <div className="h-4 bg-champagne-100 rounded mb-2" />
+                  <div className="h-4 bg-champagne-100 rounded w-1/2" />
+                </div>
+              ));
+            })()}
           </div>
         </div>
       </section>

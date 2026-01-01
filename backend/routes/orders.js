@@ -16,6 +16,9 @@ router.post('/', async (req, res) => {
     payment_method
   } = req.body;
 
+  // Accept either `total` or `total_amount` from clients to avoid mismatches
+  const totalRaw = req.body.total ?? total_amount;
+
   // Giriş yapan kullanıcı varsa userId, yoksa null (guest order)
   const userId = req.user?.userId || req.user?.id || null;
 
@@ -51,19 +54,19 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Insert order
+    // Insert order with status 'pending' (do not decrement stock here)
     // Ensure we provide both `total` and `total_amount` to match DB schema
     const insertOrder = `
       INSERT INTO orders (user_id, customer_name, customer_email, customer_phone, shipping_address, total, total_amount, status, created_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', CURRENT_TIMESTAMP)
     `;
 
-    const totalValue = Number(total_amount) || 0;
+    const totalValue = Number(totalRaw) || 0;
     const orderResult = await dbRun(insertOrder, [userId, customer_name, customer_email, customer_phone, shipping_address, totalValue, totalValue]);
     const orderId = orderResult.lastID;
 
-  // Insert order items and decrement variant stocks or product stock
-  const itemQuery = 'INSERT INTO order_items (order_id, product_id, variant_id, quantity, price) VALUES ($1, $2, $3, $4, $5)';
+    // Insert order items but DO NOT decrement stock here. Stock will be decremented when payment is confirmed via payment callback.
+    const itemQuery = 'INSERT INTO order_items (order_id, product_id, variant_id, quantity, price) VALUES ($1, $2, $3, $4, $5)';
 
     for (const item of items) {
       const productId = item.product_id || null;
@@ -72,26 +75,6 @@ router.post('/', async (req, res) => {
       const price = Number(item.price) || 0;
 
       await dbRun(itemQuery, [orderId, productId, variantId, quantity, price]);
-
-      if (variantId) {
-        // Decrement stock for the variant
-        await dbRun('UPDATE variants SET stock = stock - $1 WHERE id = $2', [quantity, variantId]);
-        logger.info(`Order ${orderId}: decremented variant ${variantId} by ${quantity}`);
-      } else if (productId) {
-        // Decrement product-level stock if exists
-        const prod = await dbGet('SELECT id, stock FROM products WHERE id = $1', [productId]);
-        if (!prod) {
-          await dbRun('ROLLBACK');
-          return res.status(400).json({ error: `Ürün bulunamadı (product_id=${productId})` });
-        }
-        if (prod.stock == null) prod.stock = 0;
-        if (prod.stock < quantity) {
-          await dbRun('ROLLBACK');
-          return res.status(400).json({ error: `Yetersiz stok: product_id=${productId}` });
-        }
-        await dbRun('UPDATE products SET stock = stock - $1 WHERE id = $2', [quantity, productId]);
-        logger.info(`Order ${orderId}: decremented product ${productId} by ${quantity}`);
-      }
     }
 
     // Commit transaction

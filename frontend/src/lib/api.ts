@@ -88,9 +88,25 @@ export async function fetchAPI(endpoint: string, options: RequestInit = {}) {
     // Build a safer log object even if error is not an Error instance
     const status = (error as any)?.status;
     const message = (error as any)?.message || String(error);
-    if (status !== 401) {
-      console.error('API Error:', { message, url, status, stack: (error as any)?.stack, body: (error as any)?.body });
+
+    // Detect common network error fingerprint from fetch in browsers
+    const isNetworkError = typeof message === 'string' && message.toLowerCase().includes('failed to fetch');
+    const online = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
+    const logObj: any = { message, url, status, online };
+    if ((error as any)?.body !== undefined) logObj.body = (error as any).body;
+    if ((error as any)?.stack) logObj.stack = (error as any).stack;
+
+    if (isNetworkError) {
+      logObj.note = 'NetworkError: unable to reach API. Check backend server, CORS, or http/https mismatch.';
+      console.error('API Network Error:', logObj);
+    } else if (status !== 401) {
+      console.error('API Error:', logObj);
+    } else {
+      // For 401s avoid noisy error logs; use debug instead so devtools are less cluttered
+      console.debug('API 401:', logObj);
     }
+
     throw error;
   }
 }
