@@ -150,6 +150,7 @@ export default function ProductPage() {
                   setSizeRequest((prev) => ({
                     ...prev,
                     productName: product?.name || "",
+                    size: selectedSize || "XS",
                   }));
                   setShowSizeRequest(true);
                 }}
@@ -202,6 +203,11 @@ export default function ProductPage() {
   const handlePreOrder = async () => {
     // Ön sipariş ürünlerinde beden talebi formunu göster
     if (product.pre_order) {
+      setSizeRequest((prev) => ({
+        ...prev,
+        productName: product.name,
+        size: selectedSize || "XS",
+      }));
       setShowSizeRequest(true);
       return;
     }
@@ -454,6 +460,11 @@ export default function ProductPage() {
                   type="button"
                   onClick={() => {
                     console.log("open sizeRequest (preorder-prompt)");
+                    setSizeRequest((prev) => ({
+                      ...prev,
+                      productName: product.name,
+                      size: selectedSize || "XS",
+                    }));
                     setShowSizeRequest(true);
                   }}
                   className="text-primary underline"
