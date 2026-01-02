@@ -335,7 +335,9 @@ router.get('/analytics/add-to-cart', adminAuth, async (req, res) => {
 router.get('/products', adminAuth, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    // Increase default admin listing limit so admin UI shows all products
+    // when the frontend doesn't pass an explicit `limit` parameter.
+    const limit = parseInt(req.query.limit) || 1000;
     const offset = (page - 1) * limit;
     const search = req.query.search || '';
 
