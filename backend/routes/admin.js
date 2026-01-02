@@ -136,28 +136,31 @@ router.post('/upload', adminAuth, upload.single('file'), async (req, res) => {
       return res.status(400).json({ success: false, message: 'Dosya gerekli' });
     }
 
-    // If SVG, perform lightweight sanitization: remove <script> blocks and on* attributes
+    // If SVG, perform lightweight sanitization using async I/O to avoid blocking
     try {
       const mime = req.file.mimetype || '';
       if (mime === 'image/svg+xml' || path.extname(req.file.originalname).toLowerCase() === '.svg') {
         const filePath = req.file.path;
-        let svg = fs.readFileSync(filePath, 'utf8');
+        try {
+          const svg = await fs.promises.readFile(filePath, 'utf8');
 
-        // Remove <script>...</script>
-        svg = svg.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '');
+          // Remove <script>...</script>
+          let cleaned = svg.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '');
 
-        // Remove on* attributes like onclick, onload (basic)
-        svg = svg.replace(/\son[a-zA-Z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+          // Remove on* attributes like onclick, onload (basic)
+          cleaned = cleaned.replace(/\son[a-zA-Z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
 
-        // Remove javascript: in href/xlink:href
-        svg = svg.replace(/(href|xlink:href)\s*=\s*("|')?javascript:[^"'>\s]+(\2)?/gi, '$1="#"');
+          // Remove javascript: in href/xlink:href
+          cleaned = cleaned.replace(/(href|xlink:href)\s*=\s*("|')?javascript:[^"'>\s]+(\2)?/gi, '$1="#"');
 
-        // Write sanitized content back
-        fs.writeFileSync(filePath, svg, 'utf8');
+          await fs.promises.writeFile(filePath, cleaned, 'utf8');
+        } catch (sErr) {
+          console.error('SVG sanitization error (async):', sErr);
+          // proceed even if sanitization fails
+        }
       }
     } catch (sErr) {
-      console.error('SVG sanitization error:', sErr);
-      // proceed even if sanitization fails
+      console.error('SVG sanitization guard error:', sErr);
     }
 
     const fileName = path.basename(req.file.path);
