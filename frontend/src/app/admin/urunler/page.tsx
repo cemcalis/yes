@@ -93,7 +93,7 @@ export default function AdminProducts() {
         return;
       }
 
-      const response = await fetch("/api/admin/products", {
+      const response = await fetch("/api/admin/products?limit=1000", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
