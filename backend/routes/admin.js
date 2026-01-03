@@ -577,8 +577,22 @@ router.put('/products/:id', adminAuth, async (req, res) => {
       id
     ]);
 
-    // Update variants only if sizes/colors/pre_order_sizes provided
-    if ((Array.isArray(sizes) && sizes.length > 0) || (Array.isArray(colors) && colors.length > 0) || (Array.isArray(pre_order_sizes) && pre_order_sizes.length > 0)) {
+    // Update variants:
+    // If `variants` array is provided in the request body, use it (each item: {size, color, stock}).
+    // Otherwise, fall back to building variants from `sizes` and `colors` and preserve existing stocks.
+    if (Array.isArray(req.body.variants) && req.body.variants.length > 0) {
+      // Delete existing and insert provided variants
+      await dbRun('DELETE FROM variants WHERE product_id = $1', [id]);
+      for (const v of req.body.variants) {
+        const vs = v && v.size ? v.size : null;
+        const vc = v && v.color ? v.color : null;
+        const vst = Number.isFinite(Number(v && v.stock ? v.stock : stock)) ? Number(v.stock) : stock;
+        await dbRun(`
+          INSERT INTO variants (product_id, size, color, stock, is_active)
+          VALUES ($1, $2, $3, $4, $5)
+        `, [id, vs, vc, vst, vst > 0 ? 1 : 0]);
+      }
+    } else if ((Array.isArray(sizes) && sizes.length > 0) || (Array.isArray(colors) && colors.length > 0) || (Array.isArray(pre_order_sizes) && pre_order_sizes.length > 0)) {
       // Preserve existing variant stock levels where possible
       const existingVariants = await dbAll('SELECT * FROM variants WHERE product_id = $1', [id]);
       const existingStockMap = {};
@@ -696,15 +710,27 @@ router.post('/products', adminAuth, async (req, res) => {
     
     console.log('Product created with ID:', productId, 'Result:', result);
 
-    // Insert variants (sizes and colors) without duplicates. Do NOT merge pre_order_sizes here;
-    // pre_order_sizes are stored on product and used for the pre-order form only.
-    let sizesToUse = Array.isArray(sizes) ? sizes.slice() : [];
-    const variantsToInsert = buildUniqueVariants(sizesToUse, colors);
-    for (const variant of variantsToInsert) {
-      await dbRun(`
-        INSERT INTO variants (product_id, size, color, stock, is_active)
-        VALUES ($1, $2, $3, $4, $5)
-      `, [productId, variant.size, variant.color, stock, stock > 0 ? 1 : 0]);
+    // Insert variants. If `variants` provided in request body, use those (allow per-variant stock).
+    if (Array.isArray(req.body.variants) && req.body.variants.length > 0) {
+      for (const v of req.body.variants) {
+        const vs = v && v.size ? v.size : null;
+        const vc = v && v.color ? v.color : null;
+        const vst = Number.isFinite(Number(v && v.stock ? v.stock : stock)) ? Number(v.stock) : stock;
+        await dbRun(`
+          INSERT INTO variants (product_id, size, color, stock, is_active)
+          VALUES ($1, $2, $3, $4, $5)
+        `, [productId, vs, vc, vst, vst > 0 ? 1 : 0]);
+      }
+    } else {
+      // Backwards-compatible: build variants from sizes/colors
+      let sizesToUse = Array.isArray(sizes) ? sizes.slice() : [];
+      const variantsToInsert = buildUniqueVariants(sizesToUse, colors);
+      for (const variant of variantsToInsert) {
+        await dbRun(`
+          INSERT INTO variants (product_id, size, color, stock, is_active)
+          VALUES ($1, $2, $3, $4, $5)
+        `, [productId, variant.size, variant.color, stock, stock > 0 ? 1 : 0]);
+      }
     }
 
     res.json({

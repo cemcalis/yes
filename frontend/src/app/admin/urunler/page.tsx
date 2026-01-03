@@ -75,6 +75,7 @@ export default function AdminProducts() {
     stock: "",
     sizes: [] as string[],
     colors: [] as string[],
+    variants: [] as { size?: string; color?: string; stock?: number }[],
     pre_order_sizes: [] as string[],
     pre_order: false,
     is_featured: false,
@@ -185,6 +186,7 @@ export default function AdminProducts() {
       category_id: parseInt(formData.category_id),
       stock: parseInt(formData.stock),
       sizes: formData.sizes,
+      variants: formData.variants,
       pre_order_sizes: formData.pre_order_sizes,
       colors: formData.colors,
       pre_order: formData.pre_order,
@@ -309,6 +311,9 @@ export default function AdminProducts() {
               ? (p.pre_order_sizes + "").split(",")
               : [],
             colors: colorsFromVariants,
+            variants: Array.isArray(p.variants)
+              ? p.variants.map((v: any) => ({ size: v.size, color: v.color, stock: v.stock }))
+              : [],
             pre_order: Boolean(p.pre_order),
             is_featured: Boolean(p.is_featured),
             is_new: Boolean(p.is_new),
@@ -335,6 +340,7 @@ export default function AdminProducts() {
               : "",
             stock: product.stock ? product.stock.toString() : "0",
             sizes: product.sizes ? product.sizes.split(",") : [],
+            variants: [],
             pre_order_sizes: (product as any).pre_order_sizes
               ? (product as any).pre_order_sizes.split(",")
               : [],
@@ -414,6 +420,7 @@ export default function AdminProducts() {
       category_id: "",
       stock: "",
       sizes: [],
+      variants: [],
       pre_order_sizes: [],
       colors: [],
       pre_order: false,
@@ -960,6 +967,34 @@ export default function AdminProducts() {
                   </p>
                 )}
               </div>
+
+              {/* Variant stock editor */}
+              {formData.variants && formData.variants.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Varyant Stokları (baza göre)
+                  </label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {formData.variants.map((v, idx) => (
+                      <div key={idx} className="flex items-center gap-3">
+                        <div className="w-40 text-sm">
+                          {v.size || ''}{v.color ? ` / ${v.color}` : ''}
+                        </div>
+                        <input
+                          type="number"
+                          value={v.stock ?? 0}
+                          onChange={(e) => {
+                            const copy = [...formData.variants];
+                            copy[idx] = { ...copy[idx], stock: parseInt(e.target.value || '0', 10) };
+                            setFormData({ ...formData, variants: copy });
+                          }}
+                          className="w-24 px-2 py-1 border rounded"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
