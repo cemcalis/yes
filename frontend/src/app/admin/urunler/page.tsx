@@ -373,6 +373,7 @@ export default function AdminProducts() {
             : "",
           stock: product.stock ? product.stock.toString() : "0",
           sizes: product.sizes ? product.sizes.split(",") : [],
+          variants: [],
           pre_order_sizes: (product as any).pre_order_sizes
             ? (product as any).pre_order_sizes.split(",")
             : [],
