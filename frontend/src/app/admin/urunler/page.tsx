@@ -785,27 +785,87 @@ export default function AdminProducts() {
                       <div className="flex flex-wrap gap-2">
                         {parseImageList(formData.images).map((url, idx) => {
                           const trimmedUrl = url;
+                          const urls = parseImageList(formData.images);
+                          const moveLeft = () => {
+                            if (idx === 0) return;
+                            const copy = [...urls];
+                            const tmp = copy[idx - 1];
+                            copy[idx - 1] = copy[idx];
+                            copy[idx] = tmp;
+                            setFormData({
+                              ...formData,
+                              images: copy.join(", "),
+                            });
+                          };
+                          const moveRight = () => {
+                            if (idx === urls.length - 1) return;
+                            const copy = [...urls];
+                            const tmp = copy[idx + 1];
+                            copy[idx + 1] = copy[idx];
+                            copy[idx] = tmp;
+                            setFormData({
+                              ...formData,
+                              images: copy.join(", "),
+                            });
+                          };
+                          const remove = () => {
+                            const copy = [...urls];
+                            copy.splice(idx, 1);
+                            setFormData({
+                              ...formData,
+                              images: copy.join(", "),
+                            });
+                          };
+                          const setAsMain = () => {
+                            setFormData({ ...formData, image: trimmedUrl });
+                          };
+
                           return (
-                            <div key={idx} className="relative">
+                            <div
+                              key={idx}
+                              className="relative flex flex-col items-center"
+                            >
                               <img
                                 src={trimmedUrl}
                                 alt={`Ek ${idx + 1}`}
                                 className="h-16 w-16 object-cover rounded-lg border border-gray-200"
                               />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const urls = parseImageList(formData.images);
-                                  urls.splice(idx, 1);
-                                  setFormData({
-                                    ...formData,
-                                    images: urls.join(", "),
-                                  });
-                                }}
-                                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
-                              >
-                                ×
-                              </button>
+                              <div className="flex gap-1 mt-1">
+                                <button
+                                  type="button"
+                                  onClick={moveLeft}
+                                  disabled={idx === 0}
+                                  title="Soldakiyle değiştir"
+                                  className="px-1 py-0.5 bg-gray-100 rounded text-xs disabled:opacity-40"
+                                >
+                                  ←
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={moveRight}
+                                  disabled={idx === urls.length - 1}
+                                  title="Sağdakiyle değiştir"
+                                  className="px-1 py-0.5 bg-gray-100 rounded text-xs disabled:opacity-40"
+                                >
+                                  →
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={setAsMain}
+                                  title="Ana resim yap"
+                                  className="px-1 py-0.5 bg-yellow-100 rounded text-xs"
+                                >
+                                  Ana
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={remove}
+                                  title="Kaldır"
+                                  className="px-1 py-0.5 bg-red-500 text-white rounded text-xs"
+                                >
+                                  ×
+                                </button>
+                              </div>
                             </div>
                           );
                         })}

@@ -27,6 +27,7 @@ async function createSettingsTable() {
       { key: 'taxRate', value: '18', type: 'number', description: 'Vergi oranı (%)' },
       { key: 'shippingCost', value: '25', type: 'number', description: 'Kargo ücreti' },
       { key: 'freeShippingThreshold', value: '500', type: 'number', description: 'Ücretsiz kargo limiti' }
+      ,{ key: 'autoDeactivateZeroStockVariant', value: 'true', type: 'boolean', description: 'Varyant stok 0 olduğunda otomatik pasif et' }
     ];
     
     for (const setting of defaultSettings) {

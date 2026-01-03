@@ -196,6 +196,16 @@ router.post(
             for (const item of items) {
               if (item.variant_id) {
                 await dbRun('UPDATE variants SET stock = stock - $1 WHERE id = $2', [item.quantity, item.variant_id]);
+                // Update active flag based on new stock if setting enabled
+                try {
+                  const s = await dbGet("SELECT value FROM settings WHERE key = 'autoDeactivateZeroStockVariant'");
+                  const enabled = s && (s.value === 'true' || s.value === '1' || s.value === 1);
+                  if (enabled) {
+                    await dbRun('UPDATE variants SET is_active = CASE WHEN stock <= 0 THEN 0 ELSE 1 END WHERE id = $1', [item.variant_id]);
+                  }
+                } catch (e) {
+                  // ignore settings errors
+                }
                 logger.info(`PayTR: decremented variant ${item.variant_id} by ${item.quantity} for order ${orderId}`);
               } else if (item.product_id) {
                 await dbRun('UPDATE products SET stock = stock - $1 WHERE id = $2', [item.quantity, item.product_id]);

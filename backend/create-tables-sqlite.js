@@ -63,6 +63,7 @@ async function createTables() {
       sku TEXT UNIQUE,
       stock INTEGER DEFAULT 0,
       price REAL,
+      is_active INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 

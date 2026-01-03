@@ -24,6 +24,12 @@ async function run() {
     if (!cols.includes('avatar_url')) toAdd.push("ALTER TABLE users ADD COLUMN avatar_url TEXT");
     if (!cols.includes('email_verified')) toAdd.push("ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0");
 
+    // Ensure variants table has is_active column
+    const variantCols = await new Promise((res, rej) => db.all("PRAGMA table_info('variants')", [], (err, rows) => err ? rej(err) : res(rows.map(r => r.name))));
+    if (!variantCols.includes('is_active')) {
+      toAdd.push("ALTER TABLE variants ADD COLUMN is_active INTEGER DEFAULT 1");
+    }
+
     for (const sql of toAdd) {
       await new Promise((res, rej) => db.run(sql, (e) => e ? rej(e) : res()));
       console.log('Ran:', sql);

@@ -256,14 +256,35 @@ export default function ProductPage() {
       ? [product.image_url]
       : [];
 
-  const specialSizes: string[] = product.pre_order_sizes
-    ? Array.isArray(product.pre_order_sizes)
+  // Determine which sizes to show in the special / pre-order form.
+  // Priority:
+  // 1) If `product.pre_order_sizes` is set, use it (comma-separated or array).
+  // 2) Otherwise, derive from variants that have stock === 0 (out-of-stock sizes).
+  // 3) Ensure the currently `selectedSize` is included so the radio list always contains the chosen size.
+  let specialSizes: string[] = [];
+  if (product.pre_order_sizes) {
+    specialSizes = Array.isArray(product.pre_order_sizes)
       ? product.pre_order_sizes
       : String(product.pre_order_sizes)
           .split(",")
           .map((s) => s.trim())
-          .filter(Boolean)
-    : ["XS", "M", "L"];
+          .filter(Boolean);
+  } else if (product.variants && product.variants.length > 0) {
+    specialSizes = product.variants
+      .filter((v) => v.stock === 0)
+      .map((v) => v.size)
+      .filter(Boolean);
+  }
+
+  // Fallback default if nothing found
+  if (!specialSizes || specialSizes.length === 0) {
+    specialSizes = ["XS", "M", "L"];
+  }
+
+  // Ensure selectedSize is present so the radio group always reflects current selection
+  if (selectedSize && !specialSizes.includes(selectedSize)) {
+    specialSizes = [selectedSize, ...specialSizes];
+  }
 
   const handleSizeRequestSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

@@ -11,6 +11,13 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+let sharp;
+try {
+  sharp = require('sharp');
+} catch (e) {
+  console.warn('`sharp` not installed. Thumbnail generation disabled.');
+  sharp = null;
+}
 
 const allowAdminDiag = process.env.ALLOW_ADMIN_DIAG === 'true';
 const allowSeedEndpoint = process.env.ALLOW_ADMIN_SEED === 'true';
@@ -167,7 +174,30 @@ router.post('/upload', adminAuth, upload.single('file'), async (req, res) => {
     // Use relative URL so it works with frontend proxy
     const url = `/uploads/${fileName}`;
 
-    res.json({ success: true, url, message: 'Dosya yüklendi' });
+    // Generate thumbnails / webp versions if sharp is available
+    const thumbs = {};
+    try {
+      if (sharp) {
+        const ext = path.extname(req.file.path);
+        const base = req.file.path.slice(0, -ext.length);
+        // small (400px), large (800px), and webp of original
+        const smallPath = `${base}-sm.webp`;
+        const largePath = `${base}-lg.webp`;
+        const webpPath = `${base}.webp`;
+
+        await sharp(req.file.path).resize({ width: 400 }).webp({ quality: 75 }).toFile(smallPath);
+        await sharp(req.file.path).resize({ width: 800 }).webp({ quality: 80 }).toFile(largePath);
+        await sharp(req.file.path).webp({ quality: 90 }).toFile(webpPath);
+
+        thumbs.small = `/uploads/${path.basename(smallPath)}`;
+        thumbs.large = `/uploads/${path.basename(largePath)}`;
+        thumbs.webp = `/uploads/${path.basename(webpPath)}`;
+      }
+    } catch (tErr) {
+      console.error('Thumbnail generation error:', tErr);
+    }
+
+    res.json({ success: true, url, thumbs, message: 'Dosya yüklendi' });
   } catch (error) {
     console.error('Upload error:', error);
     res.status(500).json({ success: false, message: 'Dosya yüklenemedi' });
@@ -568,9 +598,9 @@ router.put('/products/:id', adminAuth, async (req, res) => {
         const key = `${variant.size || ''}::${variant.color || ''}`;
         const variantStock = existingStockMap.hasOwnProperty(key) ? existingStockMap[key] : stock;
         await dbRun(`
-          INSERT INTO variants (product_id, size, color, stock)
-          VALUES ($1, $2, $3, $4)
-        `, [id, variant.size, variant.color, variantStock]);
+          INSERT INTO variants (product_id, size, color, stock, is_active)
+          VALUES ($1, $2, $3, $4, $5)
+        `, [id, variant.size, variant.color, variantStock, variantStock > 0 ? 1 : 0]);
       }
     }
 
@@ -672,9 +702,9 @@ router.post('/products', adminAuth, async (req, res) => {
     const variantsToInsert = buildUniqueVariants(sizesToUse, colors);
     for (const variant of variantsToInsert) {
       await dbRun(`
-        INSERT INTO variants (product_id, size, color, stock)
-        VALUES ($1, $2, $3, $4)
-      `, [productId, variant.size, variant.color, stock]);
+        INSERT INTO variants (product_id, size, color, stock, is_active)
+        VALUES ($1, $2, $3, $4, $5)
+      `, [productId, variant.size, variant.color, stock, stock > 0 ? 1 : 0]);
     }
 
     res.json({
