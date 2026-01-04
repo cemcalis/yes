@@ -45,6 +45,10 @@ router.post("/paytr/init", async (req, res) => {
       user_ip,
       user_name,
       user_phone,
+      user_address,
+      user_city,
+      user_country,
+      user_zip,
     } = req.body || {};
 
     if (!order_id || !email || !amount) {
@@ -91,6 +95,10 @@ router.post("/paytr/init", async (req, res) => {
       user_email: email,
       user_name: user_name || email,
       user_phone: user_phone || "",
+      user_address: user_address || "",
+      user_city: user_city || "",
+      user_country: user_country || "",
+      user_zip: user_zip || "",
       payment_amount: String(payment_amount),
       currency,
       installment: "0", // deprecated, ama bazı örneklerde var
