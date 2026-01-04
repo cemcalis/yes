@@ -133,11 +133,23 @@ router.post("/paytr/init", async (req, res) => {
       }
     }
 
-    const response = await fetch("https://www.paytr.com/odeme/api/get-token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params,
-    });
+    // Perform fetch with timeout and clear error logging
+    let response;
+    try {
+      const AbortController = globalThis.AbortController || require('abort-controller');
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      response = await fetch("https://www.paytr.com/odeme/api/get-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params,
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+    } catch (fetchErr) {
+      try { console.log('paytr:fetch_error', fetchErr && (fetchErr.message || fetchErr.toString())); } catch (e) {}
+      return res.status(502).json({ error: 'paytr_fetch_error', detail: fetchErr && fetchErr.message });
+    }
 
     // Read raw response text from PayTR, attempt to parse JSON, and always log status/body (no secrets)
     const raw = await response.text().catch(() => null);
