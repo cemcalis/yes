@@ -114,6 +114,15 @@ router.post("/paytr/init", async (req, res) => {
       payment_type: "card",
     });
 
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        const debugParams = Object.fromEntries(params.entries());
+        console.log('paytr:init params:', JSON.stringify(debugParams));
+      } catch (e) {
+        // ignore
+      }
+    }
+
     const response = await fetch("https://www.paytr.com/odeme/api/get-token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
