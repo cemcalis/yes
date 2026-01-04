@@ -51,6 +51,16 @@ router.post("/paytr/init", async (req, res) => {
       user_zip,
     } = req.body || {};
 
+    // Log received user/address fields to help debug missing params (no secrets)
+    try {
+      console.log(
+        'paytr:received',
+        JSON.stringify({ order_id, email, amount, user_name, user_phone, user_address, user_city, user_country, user_zip })
+      );
+    } catch (e) {
+      // ignore
+    }
+
     if (!order_id || !email || !amount) {
       return res
         .status(400)
