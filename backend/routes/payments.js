@@ -139,18 +139,26 @@ router.post("/paytr/init", async (req, res) => {
       body: params,
     });
 
-    const data = await response.json().catch(() => null);
+    // Read raw response text from PayTR, attempt to parse JSON, and always log status/body (no secrets)
+    const raw = await response.text().catch(() => null);
+    let data = null;
+    try {
+      data = raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      data = null;
+    }
+
+    try {
+      // always log provider response for debugging (avoid logging request secrets)
+      console.log('paytr:response', { status: response.status, body: raw });
+    } catch (e) {
+      // ignore logging errors
+    }
+
     if (!data || data.status !== "success") {
-      try {
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('paytr:response', { status: response.status, body: data });
-        }
-      } catch (e) {
-        // ignore
-      }
       return res
         .status(400)
-        .json({ error: "paytr_init_failed", detail: data || "unknown" });
+        .json({ error: "paytr_init_failed", detail: data || raw || "unknown" });
     }
 
     return res.json({
