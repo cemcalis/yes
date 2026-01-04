@@ -141,6 +141,13 @@ router.post("/paytr/init", async (req, res) => {
 
     const data = await response.json().catch(() => null);
     if (!data || data.status !== "success") {
+      try {
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('paytr:response', { status: response.status, body: data });
+        }
+      } catch (e) {
+        // ignore
+      }
       return res
         .status(400)
         .json({ error: "paytr_init_failed", detail: data || "unknown" });
