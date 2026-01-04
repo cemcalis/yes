@@ -312,7 +312,11 @@ export default function AdminProducts() {
               : [],
             colors: colorsFromVariants,
             variants: Array.isArray(p.variants)
-              ? p.variants.map((v: any) => ({ size: v.size, color: v.color, stock: v.stock }))
+              ? p.variants.map((v: any) => ({
+                  size: v.size,
+                  color: v.color,
+                  stock: v.stock,
+                }))
               : [],
             pre_order: Boolean(p.pre_order),
             is_featured: Boolean(p.is_featured),
@@ -979,14 +983,18 @@ export default function AdminProducts() {
                     {formData.variants.map((v, idx) => (
                       <div key={idx} className="flex items-center gap-3">
                         <div className="w-40 text-sm">
-                          {v.size || ''}{v.color ? ` / ${v.color}` : ''}
+                          {v.size || ""}
+                          {v.color ? ` / ${v.color}` : ""}
                         </div>
                         <input
                           type="number"
                           value={v.stock ?? 0}
                           onChange={(e) => {
                             const copy = [...formData.variants];
-                            copy[idx] = { ...copy[idx], stock: parseInt(e.target.value || '0', 10) };
+                            copy[idx] = {
+                              ...copy[idx],
+                              stock: parseInt(e.target.value || "0", 10),
+                            };
                             setFormData({ ...formData, variants: copy });
                           }}
                           className="w-24 px-2 py-1 border rounded"
