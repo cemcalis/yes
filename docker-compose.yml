@@ -35,6 +35,7 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./frontend/public:/srv/app/frontend/public:ro
+      - ./backend/public/uploads:/srv/uploads:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:

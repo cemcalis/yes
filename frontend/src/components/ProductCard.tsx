@@ -135,7 +135,22 @@ export default function ProductCard({
         setImageError(true);
       }
     } else {
-      // Second error: show placeholder
+      // Second error: if the current src is a proxied /uploads path, try calling backend directly
+      try {
+        const backend = process.env.NEXT_PUBLIC_BACKEND_URL || '';
+        if (
+          backend &&
+          currentImageSrc.startsWith('/uploads') &&
+          !currentImageSrc.startsWith(backend)
+        ) {
+          const absolute = backend.replace(/\/$/, '') + currentImageSrc;
+          setCurrentImageSrc(absolute);
+          return;
+        }
+      } catch (e) {
+        // ignore and fallback to placeholder
+      }
+      // Fallback: show placeholder
       setImageError(true);
     }
   };
