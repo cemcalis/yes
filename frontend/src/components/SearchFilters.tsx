@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
 
 interface FilterOptions {
@@ -174,7 +175,20 @@ export default function SearchFilters({ onSearch, category }: SearchFiltersProps
                 {item.type === 'product' ? (
                   <>
                     {item.image_url && (
-                      <img src={item.image_url} alt={item.name} className="w-12 h-12 object-cover rounded" />
+                      <Image
+                        src={item.image_url}
+                        alt={item.name}
+                        width={48}
+                        height={48}
+                        className="object-cover rounded"
+                        quality={75}
+                        placeholder="blur"
+                        blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R+IRjWjBqO6O2mhP//Z"
+                        unoptimized={
+                          item.image_url.startsWith("/uploads") ||
+                          item.image_url.startsWith("/urunler")
+                        }
+                      />
                     )}
                     <div className="flex-1">
                       <p className="font-medium text-sm">{item.name}</p>

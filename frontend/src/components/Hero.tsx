@@ -5,13 +5,12 @@ export default function Hero() {
   return (
     <section className="relative h-[500px] md:h-[600px] bg-linear-to-br from-gray-50 to-gray-100 overflow-hidden">
       <Image
-        src="https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1920&q=80"
+        src="/new-hero.png"
         alt="Hero"
         fill
         sizes="100vw"
         className="object-cover"
         priority
-        unoptimized
       />
 
       {/* Gradient overlays - top and bottom fade to white */}

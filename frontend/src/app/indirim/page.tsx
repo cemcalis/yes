@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getProducts } from '@/lib/api';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface Product {
   id: number;

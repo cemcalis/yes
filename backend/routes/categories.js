@@ -8,7 +8,17 @@ const path = require('path');
 // Tüm kategorileri getir
 router.get('/', async (req, res) => {
   try {
-    const rows = await dbAll('SELECT * FROM categories ORDER BY name ASC');
+    const rows = await dbAll(
+      `SELECT * FROM categories
+       ORDER BY
+         CASE
+           WHEN name = 'Elbiseler' THEN 1
+           WHEN name = 'Üst Giyim' THEN 2
+           WHEN name = 'Alt Giyim' THEN 3
+           ELSE 4
+         END,
+       name COLLATE NOCASE ASC`
+    );
     res.json(rows);
   } catch (error) {
     console.error('Get categories error:', error);
@@ -19,7 +29,17 @@ router.get('/', async (req, res) => {
 // Tüm kategorileri getir (admin)
 router.get('/admin', adminAuth, async (req, res) => {
   try {
-    const rows = await dbAll('SELECT * FROM categories ORDER BY name ASC');
+    const rows = await dbAll(
+      `SELECT * FROM categories
+       ORDER BY
+         CASE
+           WHEN name = 'Elbiseler' THEN 1
+           WHEN name = 'Üst Giyim' THEN 2
+           WHEN name = 'Alt Giyim' THEN 3
+           ELSE 4
+         END,
+       name COLLATE NOCASE ASC`
+    );
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('Get admin categories error:', error);

@@ -90,8 +90,11 @@ router.post("/paytr/init", async (req, res) => {
       req.ip ||
       "127.0.0.1";
 
-    // Hash hesaplama (PayTR dokümantasyonu)
-    const hashStr = `${PAYTR_MERCHANT_ID}${clientIp}${order_id}${email}${payment_amount}${basketStr}${no_installment}${max_installment}${currency}${test_mode}${non_3d}${PAYTR_MERCHANT_SALT}`;
+    // normalize IPv6-mapped IPv4 addresses (e.g. ::ffff:127.0.0.1 => 127.0.0.1)
+    const clientIpNormalized = (clientIp || "").toString().replace(/^::ffff:/, '');
+
+    // Hash hesaplama (PayTR dokümantasyonu) - use normalized IP to match provider expectation
+    const hashStr = `${PAYTR_MERCHANT_ID}${clientIpNormalized}${order_id}${email}${payment_amount}${basketStr}${no_installment}${max_installment}${currency}${test_mode}${non_3d}${PAYTR_MERCHANT_SALT}`;
     const paytr_token = crypto
       .createHmac("sha256", PAYTR_MERCHANT_KEY)
       .update(hashStr)
@@ -99,7 +102,7 @@ router.post("/paytr/init", async (req, res) => {
 
     const params = new URLSearchParams({
       merchant_id: PAYTR_MERCHANT_ID,
-      user_ip: clientIp,
+      user_ip: clientIpNormalized,
       merchant_oid: order_id,
       email,
       user_email: email,

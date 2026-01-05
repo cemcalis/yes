@@ -9,12 +9,12 @@ const collections = [
   {
     title: "Elbiseler",
     href: "/koleksiyon/elbiseler",
-    image: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800",
+    image: "/image1.png",
   },
   {
     title: "Üstler",
     href: "/koleksiyon/ustler",
-    image: "https://images.unsplash.com/photo-1624206112918-f140f087f9b5?w=800",
+    image: "/image.png",
   },
 ];
 

@@ -191,7 +191,40 @@ app.use('/uploads', (req, res, next) => {
           // not found, try next
         }
       }
-      // none found — continue to static handler which will return 404
+      // none found — continue to static handler which will return 404 or be handled below
+    }
+
+    // If a single file was requested but doesn't exist, attempt fallback variants.
+    // Examples: requested "Soft Authority Dress-1-sm.webp" -> try
+    // "Soft Authority Dress-1.webp", "Soft Authority Dress-1.jpg", "Soft Authority Dress-1.png", etc.
+    const relPath = originalUrl.replace(/^\//, '');
+    const requested = path.join(uploadsPath, relPath);
+    try {
+      if (fs.statSync(requested).isFile()) {
+        return res.sendFile(requested);
+      }
+    } catch (err) {
+      // not found — build alternatives
+      const ext = path.extname(relPath);
+      const base = relPath.slice(0, relPath.length - ext.length);
+      // if filename contains '-sm', try without it
+      const candidates = [];
+      const withoutSm = base.replace(/-sm$/i, '');
+      const variants = [withoutSm, base];
+      const exts = ['.webp', '.jpg', '.jpeg', '.png'];
+      for (const v of variants) {
+        for (const e of exts) {
+          candidates.push(path.join(uploadsPath, v + e));
+        }
+      }
+      for (const candidate of candidates) {
+        try {
+          const stat = fs.statSync(candidate);
+          if (stat.isFile()) return res.sendFile(candidate);
+        } catch (err2) {
+          // try next
+        }
+      }
     }
   } catch (err) {
     // on any error, fallthrough to static handler
@@ -217,7 +250,11 @@ app.use(express.static(path.join(__dirname, 'public'), {
 // Error handling
 app.use((err, req, res, next) => {
   logger.error(err && err.stack ? err.stack : String(err));
-  res.status(500).json({ error: 'Bir hata oluştu!' });
+  const status = err && err.status ? err.status : 500;
+  if (status === 404) {
+    return res.status(404).json({ error: 'Dosya bulunamadı' });
+  }
+  res.status(status).json({ error: 'Bir hata oluştu!' });
 });
 
 // Start server only when run directly

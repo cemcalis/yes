@@ -49,8 +49,22 @@ export default function ProductCard({
 
   const isProductFavorite = isFavorite(id);
 
-  // Use placeholder if no image
-  const displayImage = encodeURI(
+  // Use optimized images from backend (small for cards, large for detail)
+  const getOptimizedImage = (baseUrl: string) => {
+    if (!baseUrl) return "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800";
+
+    // If it's an external URL, return as is
+    if (baseUrl.startsWith('http') && !baseUrl.includes('/uploads/')) {
+      return encodeURI(baseUrl);
+    }
+
+    // For local uploads, try the small optimized version first, but we'll handle fallback in error handling
+    const cleanUrl = baseUrl.replace('/uploads/', '').replace(/\.[^.]+$/, '');
+    return `/uploads/${cleanUrl}-sm.webp`;
+  };
+
+  const displayImage = getOptimizedImage(image_url || images?.[0] || "");
+  const fallbackImage = encodeURI(
     image_url || images?.[0] || "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800"
   );
 
@@ -87,6 +101,7 @@ export default function ProductCard({
   };
 
   const [imageError, setImageError] = useState(false);
+  const [currentImageSrc, setCurrentImageSrc] = useState(displayImage);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [visibleAnimated, setVisibleAnimated] = useState(false);
 
@@ -108,6 +123,23 @@ export default function ProductCard({
     return () => obs.disconnect();
   }, []);
 
+  const handleImageError = () => {
+    if (!imageError) {
+      // First error: try the original image (without -sm.webp suffix)
+      const originalImage = image_url || images?.[0] || "";
+      if (originalImage && originalImage !== currentImageSrc) {
+        setCurrentImageSrc(originalImage);
+        setImageError(true);
+      } else {
+        // No original image available, show placeholder
+        setImageError(true);
+      }
+    } else {
+      // Second error: show placeholder
+      setImageError(true);
+    }
+  };
+
   return (
     <div
       ref={rootRef}
@@ -119,17 +151,20 @@ export default function ProductCard({
         <div className="relative aspect-3/4 bg-gray-50 overflow-hidden mb-3 rounded-lg">
           {!imageError ? (
             <Image
-              src={displayImage}
+              src={currentImageSrc}
               alt={name}
               fill
               sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
               className="object-cover group-hover:scale-105 transition-transform duration-500"
               loading="lazy"
+              quality={75}
+              placeholder="blur"
+              blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R+IRjWjBqO6O2mhP//Z"
               unoptimized={
-                displayImage.startsWith("/uploads") ||
-                displayImage.startsWith("/urunler")
+                currentImageSrc.startsWith("/uploads") ||
+                currentImageSrc.startsWith("/urunler")
               }
-              onError={() => setImageError(true)}
+              onError={handleImageError}
             />
           ) : (
             <div className="w-full h-full bg-linear-to-br from-gray-100 to-gray-200 flex items-center justify-center">

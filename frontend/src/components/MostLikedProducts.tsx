@@ -93,7 +93,24 @@ export default function MostLikedProducts() {
                   src={product.image_url}
                   alt={product.name}
                   fill
+                  sizes="64px"
                   className="object-cover rounded"
+                  quality={75}
+                  placeholder="blur"
+                  blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R+IRjWjBqO6O2mhP//Z"
+                  unoptimized={
+                    product.image_url.startsWith("/uploads") ||
+                    product.image_url.startsWith("/urunler")
+                  }
+                  onError={(e) => {
+                    // Try optimized version if original fails
+                    const img = e.target as HTMLImageElement;
+                    if (img.src.includes('-sm.webp')) return; // Already tried optimized
+                    const originalSrc = product.image_url;
+                    if (originalSrc && !originalSrc.includes('-sm.webp')) {
+                      img.src = originalSrc;
+                    }
+                  }}
                 />
               </div>
             </Link>
