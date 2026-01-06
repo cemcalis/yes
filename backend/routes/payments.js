@@ -80,7 +80,14 @@ router.post("/paytr/init", async (req, res) => {
     const currency = "TL";
     const no_installment = 0; // taksit kapama: 1 => kapat, 0 => açık
     const max_installment = Number.isInteger(installment) ? installment : 0;
-    const test_mode = process.env.NODE_ENV === "production" ? 0 : 1;
+    // Allow explicit override for test mode via env `PAYTR_TEST_MODE` (1/0 or true/false)
+    const test_mode = ((): number => {
+      if (typeof process.env.PAYTR_TEST_MODE !== 'undefined') {
+        const v = (process.env.PAYTR_TEST_MODE || '').toString().toLowerCase();
+        return v === '1' || v === 'true' ? 1 : 0;
+      }
+      return process.env.NODE_ENV === 'production' ? 0 : 1;
+    })();
     const non_3d = 0; // 0 => 3D Secure açık
 
     const clientIp =
@@ -127,7 +134,7 @@ router.post("/paytr/init", async (req, res) => {
       payment_type: "card",
     });
 
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== 'production' || test_mode === 1) {
       try {
         const debugParams = Object.fromEntries(params.entries());
         console.log('paytr:init params:', JSON.stringify(debugParams));
