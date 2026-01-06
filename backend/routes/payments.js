@@ -81,7 +81,7 @@ router.post("/paytr/init", async (req, res) => {
     const no_installment = 0; // taksit kapama: 1 => kapat, 0 => açık
     const max_installment = Number.isInteger(installment) ? installment : 0;
     // Allow explicit override for test mode via env `PAYTR_TEST_MODE` (1/0 or true/false)
-    const test_mode = ((): number => {
+    const test_mode = (() => {
       if (typeof process.env.PAYTR_TEST_MODE !== 'undefined') {
         const v = (process.env.PAYTR_TEST_MODE || '').toString().toLowerCase();
         return v === '1' || v === 'true' ? 1 : 0;
