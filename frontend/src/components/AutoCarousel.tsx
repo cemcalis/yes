@@ -1,3 +1,4 @@
+import React from "react";
 import Link from "next/link";
 
 type Props = {
@@ -9,7 +10,7 @@ type Props = {
   links?: string[];
 };
 
-export default function AutoCarousel({
+function AutoCarousel({
   images,
   height = "220px",
   speedSeconds = 12,
@@ -73,3 +74,5 @@ export default function AutoCarousel({
     </div>
   );
 }
+
+export default AutoCarousel;
