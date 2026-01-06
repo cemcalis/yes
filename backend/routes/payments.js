@@ -107,6 +107,10 @@ router.post("/paytr/init", async (req, res) => {
       .update(hashStr)
       .digest("base64");
 
+    // ensure PayTR required string fields are non-empty (PayTR rejects empty address)
+    // use a more explicit fallback that PayTR accepts
+    const safeStr = (v) => (v && v.toString().trim() ? v.toString() : 'No Address');
+
     const params = new URLSearchParams({
       merchant_id: PAYTR_MERCHANT_ID,
       user_ip: clientIpNormalized,
@@ -115,10 +119,10 @@ router.post("/paytr/init", async (req, res) => {
       user_email: email,
       user_name: user_name || email,
       user_phone: user_phone || "",
-      user_address: user_address || "",
-      user_city: user_city || "",
-      user_country: user_country || "",
-      user_zip: user_zip || "",
+      user_address: safeStr(user_address),
+      user_city: safeStr(user_city),
+      user_country: safeStr(user_country),
+      user_zip: safeStr(user_zip),
       payment_amount: String(payment_amount),
       currency,
       installment: "0", // deprecated, ama bazı örneklerde var

@@ -41,9 +41,17 @@ export default function Home() {
       </Section>
 
       <AutoCarousel
-        images={["/sliderelbiseler.jpg", "/sliderüstgiyim.jpg", "/slideraltgiyim.jpg"]}
+        images={[
+          "/sliderelbiseler.jpg",
+          "/sliderüstgiyim.jpg",
+          "/slideraltgiyim.jpg",
+        ]}
         labels={["Elbiseler", "Üst Giyim", "Alt Giyim"]}
-        links={["/koleksiyon/elbiseler", "/koleksiyon/ust-giyim", "/koleksiyon/alt-giyim"]}
+        links={[
+          "/koleksiyon/elbiseler",
+          "/koleksiyon/ust-giyim",
+          "/koleksiyon/alt-giyim",
+        ]}
         height="380px"
         speedSeconds={12}
         gapPx={1}

@@ -29,7 +29,9 @@ function allAsync(sql, params=[]) {
     const colNames = cols.map(c=>c.name);
     const toInsert = {};
     if (colNames.includes('status')) toInsert.status = 'pending';
+    // support both `total_amount` and legacy `total` column names
     if (colNames.includes('total_amount')) toInsert.total_amount = amount;
+    if (colNames.includes('total')) toInsert.total = amount;
     if (colNames.includes('created_at')) toInsert.created_at = new Date().toISOString();
     if (colNames.includes('updated_at')) toInsert.updated_at = new Date().toISOString();
 
