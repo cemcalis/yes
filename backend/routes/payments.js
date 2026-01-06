@@ -110,6 +110,11 @@ router.post("/paytr/init", async (req, res) => {
     // ensure PayTR required string fields are non-empty (PayTR rejects empty address)
     // use a more explicit fallback that PayTR accepts
     const safeStr = (v) => (v && v.toString().trim() ? v.toString() : 'No Address');
+    // phone must be numeric-like for provider; provide a harmless dummy if missing
+    const safePhone = (v) => {
+      const s = (v || '').toString().replace(/[^0-9+]/g, '').trim();
+      return s && s.length >= 3 ? s : '0000000000';
+    };
 
     const params = new URLSearchParams({
       merchant_id: PAYTR_MERCHANT_ID,
@@ -118,7 +123,7 @@ router.post("/paytr/init", async (req, res) => {
       email,
       user_email: email,
       user_name: user_name || email,
-      user_phone: user_phone || "",
+      user_phone: safePhone(user_phone),
       user_address: safeStr(user_address),
       user_city: safeStr(user_city),
       user_country: safeStr(user_country),
