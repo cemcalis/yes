@@ -29,6 +29,16 @@ const ensureEnv = () => {
 // PayTR iframe token oluşturma
 router.post("/paytr/init", async (req, res) => {
   try {
+    // Log safe headers for debugging (avoid logging secrets)
+    try {
+      const safeHeaders = {
+        host: req.headers.host,
+        referer: req.headers.referer,
+        'user-agent': req.headers['user-agent'],
+        'x-forwarded-for': req.headers['x-forwarded-for']
+      };
+      console.log('paytr:request_headers', JSON.stringify(safeHeaders));
+    } catch (e) {}
     const missing = ensureEnv();
     if (missing.length) {
       return res
@@ -65,6 +75,11 @@ router.post("/paytr/init", async (req, res) => {
       return res
         .status(400)
         .json({ error: "missing_fields", detail: "order_id, email, amount" });
+    }
+
+    // Validate merchant/order id format: PayTR requires alphanumeric merchant_oid
+    if (!/^[a-zA-Z0-9]+$/.test(String(order_id))) {
+      return res.status(400).json({ error: 'invalid_merchant_oid', detail: 'merchant_oid yalnızca harf ve rakam içermelidir' });
     }
 
     const payment_amount = parseInt(amount, 10);
@@ -187,8 +202,9 @@ router.post("/paytr/init", async (req, res) => {
     }
 
     if (!data || data.status !== "success") {
+      const statusCode = response && response.status ? response.status : 400;
       return res
-        .status(400)
+        .status(statusCode)
         .json({ error: "paytr_init_failed", detail: data || raw || "unknown" });
     }
 

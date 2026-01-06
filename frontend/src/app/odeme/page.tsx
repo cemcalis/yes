@@ -116,6 +116,8 @@ export default function CheckoutPage() {
       const orderId = createResp.order_id;
 
       // 2) initiate PayTR payment
+      // Ensure merchant/order id is alphanumeric (PayTR requires alphanumeric merchant_oid)
+      const safeOrderId = String(orderId).replace(/[^a-zA-Z0-9]/g, "");
       const basket = items.map((it) => [
         it.name || "",
         (Number(it.price) || 0).toFixed(2),
@@ -125,7 +127,7 @@ export default function CheckoutPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          order_id: String(orderId),
+          order_id: safeOrderId,
           email: formData.email,
           amount: Math.round(Number(total) * 100), // kuruş
           basket,

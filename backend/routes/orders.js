@@ -6,6 +6,18 @@ const { authenticateToken: auth } = require('../middleware/authMiddleware');
 
 // Sipariş oluştur (authentication GEREKLİ DEĞİL, guest de olabilir)
 router.post('/', async (req, res) => {
+  // Lightweight debug logging: safe headers + request summary
+  try {
+    const headers = {
+      host: req.headers.host,
+      referer: req.headers.referer,
+      'user-agent': req.headers['user-agent']
+    };
+    logger && logger.info && logger.info('orders:create request', { headers, bodySummary: { items: Array.isArray(req.body.items) ? req.body.items.length : 0, customer_email: req.body.customer_email || null } });
+  } catch (e) {
+    // ignore logging errors
+  }
+
   const {
     customer_name,
     customer_email,
