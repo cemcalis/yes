@@ -51,21 +51,24 @@ export default function ProductCard({
 
   // Use optimized images from backend (small for cards, large for detail)
   const getOptimizedImage = (baseUrl: string) => {
-    if (!baseUrl) return "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800";
+    if (!baseUrl)
+      return "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800";
 
     // If it's an external URL, return as is
-    if (baseUrl.startsWith('http') && !baseUrl.includes('/uploads/')) {
+    if (baseUrl.startsWith("http") && !baseUrl.includes("/uploads/")) {
       return encodeURI(baseUrl);
     }
 
     // For local uploads, try the small optimized version first, but we'll handle fallback in error handling
-    const cleanUrl = baseUrl.replace('/uploads/', '').replace(/\.[^.]+$/, '');
+    const cleanUrl = baseUrl.replace("/uploads/", "").replace(/\.[^.]+$/, "");
     return `/uploads/${cleanUrl}-sm.webp`;
   };
 
   const displayImage = getOptimizedImage(image_url || images?.[0] || "");
   const fallbackImage = encodeURI(
-    image_url || images?.[0] || "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800"
+    image_url ||
+      images?.[0] ||
+      "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800"
   );
 
   const handleFavoriteClick = async (e: React.MouseEvent) => {
@@ -137,13 +140,13 @@ export default function ProductCard({
     } else {
       // Second error: if the current src is a proxied /uploads path, try calling backend directly
       try {
-        const backend = process.env.NEXT_PUBLIC_BACKEND_URL || '';
+        const backend = process.env.NEXT_PUBLIC_BACKEND_URL || "";
         if (
           backend &&
-          currentImageSrc.startsWith('/uploads') &&
+          currentImageSrc.startsWith("/uploads") &&
           !currentImageSrc.startsWith(backend)
         ) {
-          const absolute = backend.replace(/\/$/, '') + currentImageSrc;
+          const absolute = backend.replace(/\/$/, "") + currentImageSrc;
           setCurrentImageSrc(absolute);
           return;
         }

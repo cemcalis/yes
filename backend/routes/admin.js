@@ -8,6 +8,21 @@ const { loginLimiter } = require('../middleware/security');
 
 const router = express.Router();
 
+// Simple column-existence cache to support older SQLite schemas
+const _columnCache = {};
+const hasColumn = (table, column) => {
+  const key = `${table}::${column}`;
+  if (typeof _columnCache[key] !== 'undefined') return Promise.resolve(_columnCache[key]);
+  return new Promise((res, rej) => {
+    dbAll(`PRAGMA table_info('${table}')`, [], (err, rows) => {
+      if (err) return rej(err);
+      const exists = Array.isArray(rows) && rows.some(r => r && r.name === column);
+      _columnCache[key] = exists;
+      res(exists);
+    });
+  });
+};
+
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -95,6 +110,39 @@ const buildUniqueVariants = (sizes = [], colors = []) => {
   }
 
   return variants;
+};
+
+// Ensure a slug is unique by appending -1, -2, ... if needed
+const ensureUniqueSlug = async (baseSlug) => {
+  if (!baseSlug) return baseSlug;
+  let slug = baseSlug;
+  let i = 1;
+  while (true) {
+    const existing = await dbGet('SELECT id FROM products WHERE slug = $1', [slug]);
+    if (!existing) return slug;
+    slug = `${baseSlug}-${i++}`;
+  }
+};
+
+// Ensure slug unique excluding a given product id (used on update)
+const ensureUniqueSlugExcludingId = async (baseSlug, excludeId) => {
+  if (!baseSlug) return baseSlug;
+  let slug = baseSlug;
+  let i = 1;
+  while (true) {
+    const existing = await dbGet('SELECT id FROM products WHERE slug = $1 AND id != $2', [slug, excludeId]);
+    if (!existing) return slug;
+    slug = `${baseSlug}-${i++}`;
+  }
+};
+
+// Simple slugify helper used for product slugs
+const slugify = (s) => {
+  if (!s) return '';
+  return s.toString().toLowerCase().trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9\-]/g, '')
+    .replace(/\-+/g, '-');
 };
 
 // Admin login - DB backed
@@ -426,6 +474,25 @@ router.get('/products', adminAuth, async (req, res) => {
       pre_order_sizes: p.pre_order_sizes || null
     }));
 
+    // Fetch variant sizes for all returned products so admin UI can show sizes
+    // Use a grouped query to avoid N+1 queries
+    const productIds = products.map((p) => p.id);
+    if (productIds.length > 0) {
+      // SQLite: group_concat to aggregate sizes; remove NULLs and duplicates
+      const placeholders = productIds.map(() => '?').join(',');
+      const sizesRows = await dbAll(
+        `SELECT product_id, group_concat(DISTINCT size) as sizes FROM variants WHERE product_id IN (${placeholders}) AND size IS NOT NULL GROUP BY product_id`,
+        productIds
+      );
+      const sizesMap = {};
+      for (const row of sizesRows) {
+        sizesMap[row.product_id] = row.sizes;
+      }
+      for (const p of products) {
+        p.sizes = sizesMap[p.id] || null;
+      }
+    }
+
     const total = parseInt(countResult?.count || 0, 10);
 
     res.json({
@@ -550,7 +617,8 @@ router.put('/products/:id', adminAuth, async (req, res) => {
     }
 
     // Update product
-    const slug = req.body.slug ? req.body.slug.toString().toLowerCase().trim().replace(/\s+/g,'-').replace(/[^a-z0-9\-]/g,'').replace(/\-+/g,'-') : name.toString().toLowerCase().trim().replace(/\s+/g,'-').replace(/[^a-z0-9\-]/g,'').replace(/\-+/g,'-');
+    const slugCandidate = req.body.slug ? slugify(req.body.slug) : slugify(name);
+    const slug = await ensureUniqueSlugExcludingId(slugCandidate, id);
     const imagesJson = Array.isArray(images) ? JSON.stringify(images) : images;
 
     await dbRun(`
@@ -583,14 +651,25 @@ router.put('/products/:id', adminAuth, async (req, res) => {
     if (Array.isArray(req.body.variants) && req.body.variants.length > 0) {
       // Delete existing and insert provided variants
       await dbRun('DELETE FROM variants WHERE product_id = $1', [id]);
+      const variantsHasIsActive = await hasColumn('variants', 'is_active');
       for (const v of req.body.variants) {
         const vs = v && v.size ? v.size : null;
         const vc = v && v.color ? v.color : null;
-        const vst = Number.isFinite(Number(v && v.stock ? v.stock : stock)) ? Number(v.stock) : stock;
-        await dbRun(`
-          INSERT INTO variants (product_id, size, color, stock, is_active)
-          VALUES ($1, $2, $3, $4, $5)
-        `, [id, vs, vc, vst, vst > 0 ? 1 : 0]);
+        // Accept explicit 0 stock values (don't treat 0 as "missing").
+        const vst = v && typeof v.stock !== 'undefined' && v.stock !== null && !Number.isNaN(Number(v.stock))
+          ? Number(v.stock)
+          : Number(stock);
+        if (variantsHasIsActive) {
+          await dbRun(`
+            INSERT INTO variants (product_id, size, color, stock, is_active)
+            VALUES ($1, $2, $3, $4, $5)
+          `, [id, vs, vc, vst, vst > 0 ? 1 : 0]);
+        } else {
+          await dbRun(`
+            INSERT INTO variants (product_id, size, color, stock)
+            VALUES ($1, $2, $3, $4)
+          `, [id, vs, vc, vst]);
+        }
       }
     } else if ((Array.isArray(sizes) && sizes.length > 0) || (Array.isArray(colors) && colors.length > 0) || (Array.isArray(pre_order_sizes) && pre_order_sizes.length > 0)) {
       // Preserve existing variant stock levels where possible
@@ -608,13 +687,25 @@ router.put('/products/:id', adminAuth, async (req, res) => {
       let sizesToUse = Array.isArray(sizes) ? sizes.slice() : [];
 
       const variantsToInsert = buildUniqueVariants(sizesToUse, colors);
+      const variantsHasIsActive2 = await hasColumn('variants', 'is_active');
       for (const variant of variantsToInsert) {
         const key = `${variant.size || ''}::${variant.color || ''}`;
-        const variantStock = existingStockMap.hasOwnProperty(key) ? existingStockMap[key] : stock;
-        await dbRun(`
-          INSERT INTO variants (product_id, size, color, stock, is_active)
-          VALUES ($1, $2, $3, $4, $5)
-        `, [id, variant.size, variant.color, variantStock, variantStock > 0 ? 1 : 0]);
+        let variantStock = existingStockMap.hasOwnProperty(key) ? existingStockMap[key] : stock;
+        // Normalize to number and accept 0 as valid stock
+        variantStock = typeof variantStock !== 'undefined' && variantStock !== null && !Number.isNaN(Number(variantStock))
+          ? Number(variantStock)
+          : Number(stock);
+        if (variantsHasIsActive2) {
+          await dbRun(`
+            INSERT INTO variants (product_id, size, color, stock, is_active)
+            VALUES ($1, $2, $3, $4, $5)
+          `, [id, variant.size, variant.color, variantStock, variantStock > 0 ? 1 : 0]);
+        } else {
+          await dbRun(`
+            INSERT INTO variants (product_id, size, color, stock)
+            VALUES ($1, $2, $3, $4)
+          `, [id, variant.size, variant.color, variantStock]);
+        }
       }
     }
 
@@ -668,16 +759,8 @@ router.post('/products', adminAuth, async (req, res) => {
       });
     }
 
-    // Helper to generate slug
-    const slugify = (s) => {
-      if (!s) return '';
-      return s.toString().toLowerCase().trim()
-        .replace(/\s+/g, '-')
-        .replace(/[^a-z0-9\-]/g, '')
-        .replace(/\-+/g, '-');
-    };
-
-    const slug = req.body.slug ? slugify(req.body.slug) : slugify(name);
+    const slugBase = req.body.slug ? slugify(req.body.slug) : slugify(name);
+    const slugUnique = await ensureUniqueSlug(slugBase);
 
     // Convert images to JSON string if it's an array
     const imagesJson = Array.isArray(images) ? JSON.stringify(images) : images;
@@ -689,7 +772,7 @@ router.post('/products', adminAuth, async (req, res) => {
        RETURNING id`
       , [
         name,
-        slug,
+        slugUnique,
         description,
         slogan || null,
         price,
@@ -712,24 +795,40 @@ router.post('/products', adminAuth, async (req, res) => {
 
     // Insert variants. If `variants` provided in request body, use those (allow per-variant stock).
     if (Array.isArray(req.body.variants) && req.body.variants.length > 0) {
+      const variantsHasIsActive3 = await hasColumn('variants', 'is_active');
       for (const v of req.body.variants) {
         const vs = v && v.size ? v.size : null;
         const vc = v && v.color ? v.color : null;
         const vst = Number.isFinite(Number(v && v.stock ? v.stock : stock)) ? Number(v.stock) : stock;
-        await dbRun(`
-          INSERT INTO variants (product_id, size, color, stock, is_active)
-          VALUES ($1, $2, $3, $4, $5)
-        `, [productId, vs, vc, vst, vst > 0 ? 1 : 0]);
+        if (variantsHasIsActive3) {
+          await dbRun(`
+            INSERT INTO variants (product_id, size, color, stock, is_active)
+            VALUES ($1, $2, $3, $4, $5)
+          `, [productId, vs, vc, vst, vst > 0 ? 1 : 0]);
+        } else {
+          await dbRun(`
+            INSERT INTO variants (product_id, size, color, stock)
+            VALUES ($1, $2, $3, $4)
+          `, [productId, vs, vc, vst]);
+        }
       }
     } else {
       // Backwards-compatible: build variants from sizes/colors
       let sizesToUse = Array.isArray(sizes) ? sizes.slice() : [];
       const variantsToInsert = buildUniqueVariants(sizesToUse, colors);
+      const variantsHasIsActive4 = await hasColumn('variants', 'is_active');
       for (const variant of variantsToInsert) {
-        await dbRun(`
-          INSERT INTO variants (product_id, size, color, stock, is_active)
-          VALUES ($1, $2, $3, $4, $5)
-        `, [productId, variant.size, variant.color, stock, stock > 0 ? 1 : 0]);
+        if (variantsHasIsActive4) {
+          await dbRun(`
+            INSERT INTO variants (product_id, size, color, stock, is_active)
+            VALUES ($1, $2, $3, $4, $5)
+          `, [productId, variant.size, variant.color, stock, stock > 0 ? 1 : 0]);
+        } else {
+          await dbRun(`
+            INSERT INTO variants (product_id, size, color, stock)
+            VALUES ($1, $2, $3, $4)
+          `, [productId, variant.size, variant.color, stock]);
+        }
       }
     }
 

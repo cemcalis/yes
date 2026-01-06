@@ -249,6 +249,12 @@ app.use(express.static(path.join(__dirname, 'public'), {
 
 // Error handling
 app.use((err, req, res, next) => {
+  // Detect JSON parse errors from body-parser and return a clearer 400
+  if (err && (err instanceof SyntaxError) && (err.status === 400) && 'body' in err) {
+    logger.warn('JSON parse error: invalid JSON in request body');
+    return res.status(400).json({ error: 'Geçersiz JSON gövdesi' });
+  }
+
   logger.error(err && err.stack ? err.stack : String(err));
   const status = err && err.status ? err.status : 500;
   if (status === 404) {

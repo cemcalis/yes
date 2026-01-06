@@ -286,6 +286,18 @@ export default function ProductPage() {
     specialSizes = [selectedSize, ...specialSizes];
   }
 
+  // Build a set of pre-order sizes for quick checks (from product.pre_order_sizes)
+  const preOrderSizeSet = new Set<string>();
+  if (product.pre_order_sizes) {
+    const arr = Array.isArray(product.pre_order_sizes)
+      ? product.pre_order_sizes
+      : String(product.pre_order_sizes)
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+    arr.forEach((s) => preOrderSizeSet.add(s));
+  }
+
   const handleSizeRequestSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const submit = async () => {
@@ -431,43 +443,45 @@ export default function ProductPage() {
 
             <div className="flex gap-2 flex-wrap">
               {product.variants && product.variants.length > 0
-                ? product.variants.map((variant) => (
-                    <button
-                      key={variant.id}
-                      onClick={() => {
-                        if (variant.stock > 0) {
-                          setSelectedSize(variant.size);
-                        } else {
-                          console.log(
-                            "open sizeRequest (variant-click)",
-                            variant.size,
-                            product?.name
-                          );
-                          setSizeRequest({
-                            ...sizeRequest,
-                            productName: product.name,
-                            size: variant.size,
-                          });
-                          setShowSizeRequest(true);
-                        }
-                      }}
-                      disabled={variant.stock === 0}
-                      className={`px-4 py-2 border rounded-md transition-colors font-semibold ${
-                        selectedSize === variant.size
-                          ? "border-champagne-contrast/60 hover:border-champagne-contrast/80 text-champagne-contrast bg-white shadow-sm ring-1 ring-champagne-contrast/30"
-                          : variant.stock > 0
-                          ? "border-gray-300 hover:border-champagne-contrast/40 text-gray-700 bg-white"
-                          : "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
-                      }`}
-                    >
-                      {variant.size}
-                      {variant.stock === 0 && (
-                        <span className="text-xs block">
-                          {product.pre_order ? "Ön Sipariş" : "Talep Oluştur"}
-                        </span>
-                      )}
-                    </button>
-                  ))
+                ? product.variants.map((variant) => {
+                    const isPreOrderSize = preOrderSizeSet.has(variant.size);
+                    const disabled = variant.stock === 0 || isPreOrderSize;
+                    return (
+                      <button
+                        key={variant.id}
+                        onClick={() => {
+                          if (variant.stock > 0 && !isPreOrderSize) {
+                            setSelectedSize(variant.size);
+                          } else {
+                            console.log(
+                              "open sizeRequest (variant-click)",
+                              variant.size,
+                              product?.name
+                            );
+                            setSizeRequest({
+                              ...sizeRequest,
+                              productName: product.name,
+                              size: variant.size,
+                            });
+                            setShowSizeRequest(true);
+                          }
+                        }}
+                        disabled={disabled}
+                        className={`px-4 py-2 border rounded-md transition-colors font-semibold ${
+                          selectedSize === variant.size
+                            ? "border-champagne-contrast/60 hover:border-champagne-contrast/80 text-champagne-contrast bg-white shadow-sm ring-1 ring-champagne-contrast/30"
+                            : !disabled
+                            ? "border-gray-300 hover:border-champagne-contrast/40 text-gray-700 bg-white"
+                            : "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
+                        }`}
+                      >
+                        {variant.size}
+                        {(variant.stock === 0 || isPreOrderSize) && (
+                          <span className="text-xs block">Ön Sipariş</span>
+                        )}
+                      </button>
+                    );
+                  })
                 : null}
             </div>
 

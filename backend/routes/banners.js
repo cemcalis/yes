@@ -5,12 +5,13 @@ const { dbAll, dbGet, dbRun } = require('../db');
 // Public banners endpoint
 router.get('/', async (req, res) => {
   try {
-    const banners = await dbAll(
-      `SELECT * FROM banners
-       WHERE is_active = 1
-       ORDER BY sort_order ASC, created_at DESC`
-    );
+    // Detect whether `sort_order` column exists; fall back to `display_order` or no-order
+    const cols = await new Promise((resCols, rejCols) => dbAll("PRAGMA table_info('banners')", [], (err, rows) => err ? rejCols(err) : resCols((rows || []).map(r => r.name))));
+    let orderClause = 'created_at DESC';
+    if (cols.includes('sort_order')) orderClause = 'sort_order ASC, created_at DESC';
+    else if (cols.includes('display_order')) orderClause = 'display_order ASC, created_at DESC';
 
+    const banners = await dbAll(`SELECT * FROM banners WHERE is_active = 1 ORDER BY ${orderClause}`);
     res.json(banners);
   } catch (error) {
     console.error('Public banners error:', error);
