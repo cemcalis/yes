@@ -17,7 +17,7 @@ backend/.env.*.local
 
 # Data and uploads
 data/
-backend/public/uploads/
+*.sqlite
 *.sqlite
 
 # Logs

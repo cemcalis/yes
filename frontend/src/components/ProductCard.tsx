@@ -54,13 +54,23 @@ export default function ProductCard({
     if (!baseUrl)
       return "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800";
 
-    // If it's an external URL, return as is
+    // If it's an external URL (Unsplash, AWS S3 etc.) and NOT our local uploads
     if (baseUrl.startsWith("http") && !baseUrl.includes("/uploads/")) {
       return encodeURI(baseUrl);
     }
 
-    // For local uploads, try the small optimized version first, but we'll handle fallback in error handling
-    const cleanUrl = baseUrl.replace("/uploads/", "").replace(/\.[^.]+$/, "");
+    // For local uploads, we want to serve them through our public /uploads path
+    // Strip domain and /uploads/ prefix to get the filename
+    let cleanUrl = baseUrl;
+    
+    // If it contains /uploads/, take everything after it
+    if (cleanUrl.includes("/uploads/")) {
+      cleanUrl = cleanUrl.split("/uploads/")[1];
+    }
+    
+    // Remove extension
+    cleanUrl = cleanUrl.replace(/\.[^.]+$/, "");
+    
     return `/uploads/${cleanUrl}-sm.webp`;
   };
 

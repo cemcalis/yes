@@ -11,6 +11,8 @@ RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 COPY . .
 # Use NODE_OPTIONS to increase heap for heavy builds to avoid OOM
+ARG NEXT_PUBLIC_BACKEND_URL
+ENV NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
 RUN npm run build
 
 FROM node:22-alpine AS runner
