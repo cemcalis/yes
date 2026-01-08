@@ -60,25 +60,21 @@ export default function ProductCard({
     }
 
     // For local uploads, we want to serve them through our public /uploads path
-    // Strip domain and /uploads/ prefix to get the filename
-    let cleanUrl = baseUrl;
-    
-    // If it contains /uploads/, take everything after it
-    if (cleanUrl.includes("/uploads/")) {
-      cleanUrl = cleanUrl.split("/uploads/")[1];
+    // If the URL contains /uploads/, extract that part (handles http://backend:5000/uploads/...)
+    const uploadIndex = baseUrl.indexOf("/uploads/");
+    if (uploadIndex !== -1) {
+      return baseUrl.substring(uploadIndex);
     }
-    
-    // Remove extension
-    cleanUrl = cleanUrl.replace(/\.[^.]+$/, "");
-    
-    return `/uploads/${cleanUrl}-sm.webp`;
+
+    // If it's just a filename or other path, treat it as relative to uploads if not absolute
+    return baseUrl.startsWith("/") ? baseUrl : `/uploads/${baseUrl}`;
   };
 
   const displayImage = getOptimizedImage(image_url || images?.[0] || "");
   const fallbackImage = encodeURI(
     image_url ||
-      images?.[0] ||
-      "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800"
+    images?.[0] ||
+    "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800"
   );
 
   const handleFavoriteClick = async (e: React.MouseEvent) => {
@@ -171,9 +167,8 @@ export default function ProductCard({
   return (
     <div
       ref={rootRef}
-      className={`group relative ${
-        visibleAnimated ? "animate-fade-in-up" : "opacity-0"
-      }`}
+      className={`group relative ${visibleAnimated ? "animate-fade-in-up" : "opacity-0"
+        }`}
     >
       <Link href={`/urun/${slug}`} className="block group">
         <div className="relative aspect-3/4 bg-gray-50 overflow-hidden mb-3 rounded-lg">
@@ -226,17 +221,15 @@ export default function ProductCard({
           <button
             onClick={handleFavoriteClick}
             disabled={isAddingToFavorites}
-            className={`absolute top-2 right-2 p-2 bg-white/80 backdrop-blur-sm transition-all duration-200 ${
-              isProductFavorite
+            className={`absolute top-2 right-2 p-2 bg-white/80 backdrop-blur-sm transition-all duration-200 ${isProductFavorite
                 ? "text-red-500"
                 : "text-gray-600 hover:text-red-500"
-            } ${isAddingToFavorites ? "opacity-50 cursor-not-allowed" : ""}`}
+              } ${isAddingToFavorites ? "opacity-50 cursor-not-allowed" : ""}`}
           >
             <Heart
               size={18}
-              className={`transition-all duration-200 ${
-                isProductFavorite ? "fill-current" : ""
-              }`}
+              className={`transition-all duration-200 ${isProductFavorite ? "fill-current" : ""
+                }`}
             />
           </button>
         </div>
@@ -266,8 +259,8 @@ export default function ProductCard({
             {isAddingToCart
               ? "Ekleniyor..."
               : stock_status === "out_of_stock"
-              ? "Stokta Yok"
-              : "Sepete Ekle"}
+                ? "Stokta Yok"
+                : "Sepete Ekle"}
           </button>
         </div>
       </Link>
